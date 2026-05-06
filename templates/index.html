@@ -390,7 +390,6 @@
       btn.classList.toggle('enabled', document.getElementById('userInput').value.trim().length > 0 || currentFile);
     }
 
-    // Efeito Typewriter
     function typeWriter(element, text, speed = 8, onComplete) {
       let i = 0;
       function type() {
@@ -417,8 +416,11 @@
         formData.append('file', currentFile);
         try {
           const resp = await fetch(UPLOAD_URL, { method: 'POST', body: formData });
-          if (!resp.ok) throw new Error((await resp.text()).substring(0, 100));
-          const data = await resp.json();
+          const text = await resp.text();
+          let data;
+          try { data = JSON.parse(text); }
+          catch (jsonErr) { throw new Error(text.substring(0, 100) || 'Resposta inválida do servidor.'); }
+          if (!resp.ok) throw new Error(data.error || `Erro ${resp.status}`);
           pendingFileContent = data.content;
           currentFile = null; document.getElementById('fileInput').value = ''; updateFilePreview();
           if (!message) message = `Analise o arquivo "${data.filename}".`;
@@ -439,18 +441,20 @@
 
       const assistantRow = appendMessage('assistant', '', '');
       const msgContent = assistantRow.querySelector('.message-content');
-      // Indicador de digitação
       const typingDiv = document.createElement('div');
       typingDiv.className = 'typing-dots'; typingDiv.innerHTML = '<span></span><span></span><span></span>';
       msgContent.appendChild(typingDiv);
 
       try {
         const resp = await fetch(CHAT_URL, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-        if (!resp.ok) throw new Error((await resp.text()).substring(0, 200));
-        const data = await resp.json();
+        const text = await resp.text();
+        let data;
+        try { data = JSON.parse(text); }
+        catch (jsonErr) { throw new Error(text.substring(0, 200) || 'Erro inesperado.'); }
+        if (!resp.ok) throw new Error(data.error || `Erro ${resp.status}`);
+
         typingDiv.remove();
 
-        // Exibe o pensamento imediatamente
         if (data.thinking) {
           const details = document.createElement('details');
           details.className = 'thinking-block';
@@ -458,15 +462,11 @@
           msgContent.appendChild(details);
         }
 
-        // Cria o elemento onde a resposta será digitada
         const answerPlaceholder = document.createElement('div');
         msgContent.appendChild(answerPlaceholder);
 
-        // Efeito typewriter
         typeWriter(answerPlaceholder, data.answer || '', 8, function() {
-          // Após digitar, substitui pelo HTML formatado com Markdown
-          const formatted = markdownToHtml(data.answer || '');
-          answerPlaceholder.innerHTML = formatted;
+          answerPlaceholder.innerHTML = markdownToHtml(data.answer || '');
         });
 
         conv.messages.push({ role: 'assistant', content: data.answer, thinking: data.thinking });

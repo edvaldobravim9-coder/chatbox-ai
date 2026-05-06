@@ -56,11 +56,12 @@ MAX_FILE_SIZE = 10 * 1024 * 1024
 ALLOWED_EXTENSIONS = {
     '.pdf', '.docx', '.doc', '.txt', '.md', '.csv',
     '.xlsx', '.xls', '.pptx', '.ppt',
-    '.jpg', '.jpeg', '.png', '.bmp',
+    '.jpg', '.jpeg', '.png', '.bmp', '.webp', '.gif',
     '.py', '.java', '.cpp', '.c', '.h', '.js', '.ts', '.html', '.css',
     '.json', '.xml', '.yaml', '.yml', '.toml', '.cfg', '.ini',
     '.sh', '.bat', '.ps1', '.r', '.rb', '.go', '.rs', '.swift',
-    '.kt', '.scala', '.lua', '.sql', '.zip'
+    '.kt', '.scala', '.lua', '.sql', '.zip',
+    '.log', '.env', '.properties', '.conf'
 }
 BLOCKED_EXTENSIONS = {'.exe', '.dll', '.so', '.msi', '.apk', '.ipa'}
 
@@ -183,7 +184,7 @@ def extract_text(file_path):
             text = "\n\n".join(slides)
         elif suffix in [".txt", ".md", ".py", ".java", ".cpp", ".js", ".html", ".css", ".json", ".xml", ".csv", ".sql", ".log"]:
             text = path.read_text(encoding="utf-8", errors="ignore")
-        elif suffix in [".png", ".jpg", ".jpeg", ".bmp", ".tiff"]:
+        elif suffix in [".png", ".jpg", ".jpeg", ".bmp", ".tiff", ".webp", ".gif"]:
             if pytesseract and Image:
                 try:
                     img = Image.open(file_path)
@@ -211,10 +212,17 @@ def extract_text(file_path):
     return text or "[Conteúdo vazio]"
 
 def ask(context, jailbreak=False):
-    # ... (código existente) ...
+    system = JAILBREAK_SYSTEM if jailbreak else DEFAULT_SYSTEM
+    full_prompt = f"System: {system}\n\n{context}"
+    old_stdout = sys.stdout
+    sys.stdout = StringIO()
+    try:
+        response = model.generate_content(full_prompt, stream=True)
+        stream_output = sys.stdout.getvalue()
+        answer = response.text.strip()
+    finally: sys.stdout = old_stdout
     clean = re.sub(r'\x1b\[[0-9;]*m', '', stream_output)
     thinking = clean.replace(answer, '').strip()
-    # Remove barras invertidas residuais que podem quebrar Markdown
     thinking = thinking.replace('\\', '')
     return thinking, answer
 
@@ -350,7 +358,6 @@ def export_conversation(conv_id):
             })
         return Response(json.dumps(data, indent=2, ensure_ascii=False), mimetype='application/json',
                         headers={'Content-Disposition': f'attachment; filename="{conv.title}.json"'})
-
     elif fmt == 'md':
         lines = [f"# {conv.title}", f"*Exportado em {datetime.utcnow().strftime('%d/%m/%Y %H:%M')}*\n"]
         for m in msgs:
@@ -361,7 +368,6 @@ def export_conversation(conv_id):
             lines.append(m.content + "\n")
         return Response('\n'.join(lines), mimetype='text/markdown',
                         headers={'Content-Disposition': f'attachment; filename="{conv.title}.md"'})
-
     else:  # txt
         lines = [f"=== {conv.title} ===", f"Exportado em {datetime.utcnow().strftime('%d/%m/%Y %H:%M')}\n"]
         for m in msgs:
@@ -378,20 +384,47 @@ def export_conversation(conv_id):
 @limiter.limit("10 per minute")
 def upload():
     file = request.files.get('file')
-    if not file or file.filename == '': return jsonify({'error': 'Nenhum arquivo'}), 400
+    if not file or file.filename == '':
+        return jsonify({'error': 'Nenhum arquivo enviado.'}), 400
     file.seek(0, os.SEEK_END)
-    if file.tell() > MAX_FILE_SIZE:
-        return jsonify({'error': f'Arquivo excede o limite de {MAX_FILE_SIZE // (1024*1024)} MB'}), 413
+    file_length = file.tell()
+    if file_length > MAX_FILE_SIZE:
+        return jsonify({'error': f'Arquivo excede o limite de {MAX_FILE_SIZE // (1024 * 1024)} MB.'}), 413
     file.seek(0)
     suffix = Path(file.filename).suffix.lower()
-    if suffix in BLOCKED_EXTENSIONS: return jsonify({'error': f'Extensão {suffix} bloqueada por segurança'}), 415
-    if suffix not in ALLOWED_EXTENSIONS: return jsonify({'error': f'Extensão {suffix} não suportada'}), 415
+    if suffix in BLOCKED_EXTENSIONS:
+        return jsonify({'error': f'Tipo de arquivo bloqueado por segurança (.{suffix}).'}), 415
+    if suffix not in ALLOWED_EXTENSIONS:
+        return jsonify({'error': f'Tipo de arquivo não suportado (.{suffix}).'}), 415
+    try:
+        save_path = UPLOAD_FOLDER / file.filename
+        file.save(str(save_path))
+        extracted = extract_text(str(save_path))
+        os.remove(str(save_path))
+        return jsonify({'filename': file.filename, 'content': extracted, 'size': file_length})
+    except Exception as e:
+        security_logger.error(f"Erro ao processar upload: {e}")
+        return jsonify({'error': 'Erro interno ao processar o arquivo. Tente novamente.'}), 500
 
-    save_path = UPLOAD_FOLDER / file.filename
-    file.save(str(save_path))
-    extracted = extract_text(str(save_path))
-    os.remove(str(save_path))
-    return jsonify({'filename': file.filename, 'content': extracted})
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({'error': 'Recurso não encontrado.'}), 404
+
+@app.errorhandler(405)
+def method_not_allowed(e):
+    return jsonify({'error': 'Método não permitido.'}), 405
+
+@app.errorhandler(429)
+def ratelimit_error(e):
+    return jsonify({'error': 'Muitas requisições. Aguarde um momento.'}), 429
+
+@app.errorhandler(413)
+def too_large(e):
+    return jsonify({'error': 'Arquivo muito grande. O limite é 10 MB.'}), 413
+
+@app.errorhandler(500)
+def internal_error(e):
+    return jsonify({'error': 'Erro interno do servidor.'}), 500
 
 @app.route('/auth/google')
 @limiter.limit("10 per minute")
@@ -467,14 +500,6 @@ def logout():
     if current_user.is_authenticated: logout_user()
     session.clear()
     return redirect(url_for('login'))
-
-@app.errorhandler(429)
-def ratelimit_error(e):
-    return jsonify({'error': 'Muitas requisições. Aguarde um momento.'}), 429
-
-@app.errorhandler(413)
-def too_large(e):
-    return jsonify({'error': 'Arquivo ou requisição muito grande.'}), 413
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
