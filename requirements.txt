@@ -1,0 +1,14 @@
+Flask
+opendeep
+PyPDF2
+python-docx
+openpyxl
+python-pptx
+Pillow
+pytesseractflask
+opendeep
+PyPDF2
+python-docx
+openpyxl
+python-pptx
+Pillow

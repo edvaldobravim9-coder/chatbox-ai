@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DeepSeek Plus</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; background: #343541; color: #ECECF1; display: flex; height: 100vh; }
+    .sidebar { width: 260px; background: #202123; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .sidebar .new-chat { background: #0A84FF; border: none; color: white; padding: 10px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+    .sidebar .history { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+    .sidebar .chat-item { padding: 8px; border-radius: 6px; cursor: pointer; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sidebar .chat-item:hover { background: #2A2B32; }
+    .sidebar .chat-item.active { background: #343541; }
+    .main { flex: 1; display: flex; flex-direction: column; }
+    .chat-container { flex: 1; overflow-y: auto; padding: 20px 0; }
+    .message-row { display: flex; padding: 16px 10%; gap: 16px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .message-row.assistant { background: #444654; }
+    .avatar { width: 30px; height: 30px; border-radius: 4px; font-weight: bold; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; flex-shrink: 0; }
+    .user .avatar { background: #0A84FF; }
+    .assistant .avatar { background: #19C37D; }
+    .message-content { line-height: 1.5; white-space: pre-wrap; flex: 1; }
+    .thinking-block { background: #2D2D3A; border-left: 3px solid #19C37D; padding: 8px 12px; margin: 8px 0; border-radius: 4px; font-size: 13px; color: #A0A0B0; }
+    .thinking-block summary { color: #19C37D; font-weight: bold; }
+    .typing-indicator { color: #8E8E9E; font-style: italic; padding: 4px 0; }
+    .input-bar { padding: 16px 10%; background: #343541; }
+    .input-wrapper { display: flex; background: #40414F; border-radius: 12px; align-items: center; padding: 6px 12px; border: 1px solid #4D4D5C; }
+    .input-wrapper textarea { flex: 1; background: transparent; border: none; color: white; resize: none; font-size: 15px; padding: 8px 0; outline: none; }
+    .input-wrapper input[type="file"] { display: none; }
+    .btn { background: transparent; border: none; color: #8E8E9E; cursor: pointer; padding: 8px; font-size: 18px; }
+    .btn.send { color: #0A84FF; }
+    .file-pill { background: #2D2D3A; padding: 4px 10px; border-radius: 8px; margin-right: 8px; font-size: 13px; white-space: nowrap; }
+    .jailbreak-toggle { display: flex; align-items: center; gap: 6px; color: #FF6B6B; padding: 0 10%; margin-bottom: 8px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <button class="new-chat" onclick="newChat()">+ Novo chat</button>
+    <div class="history" id="history"></div>
+  </div>
+  <div class="main">
+    <div class="chat-container" id="chatContainer"></div>
+    <div class="jailbreak-toggle">
+      <input type="checkbox" id="jailbreakCheckbox">
+      <label for="jailbreakCheckbox">🔓 Modo Desenvolvedor</label>
+    </div>
+    <div class="input-bar">
+      <div class="input-wrapper">
+        <label class="btn">📎<input type="file" id="fileInput" onchange="handleFile(this)"></label>
+        <div id="filePreview" style="display:flex; align-items:center;"></div>
+        <textarea id="userInput" rows="1" placeholder="Digite uma mensagem..." onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); sendMessage();}"></textarea>
+        <button class="btn send" onclick="sendMessage()">➤</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const CHAT_URL = '/chat';
+    const UPLOAD_URL = '/upload';
+
+    let conversations = [];
+    let activeConvIndex = -1;
+    let currentFile = null;
+    let pendingFileContent = null; // conteúdo extraído do upload, aguardando envio
+    let isLoading = false;
+
+    function newChat() {
+      conversations.push([]);
+      activeConvIndex = conversations.length - 1;
+      renderHistory();
+      document.getElementById('chatContainer').innerHTML = '';
+      clearFileSelection();
+    }
+
+    function switchChat(index) {
+      activeConvIndex = index;
+      renderHistory();
+      const messages = conversations[index];
+      const container = document.getElementById('chatContainer');
+      container.innerHTML = '';
+      messages.forEach(msg => appendMessage(msg.role, msg.content, msg.thinking));
+    }
+
+    function renderHistory() {
+      const hist = document.getElementById('history');
+      hist.innerHTML = '';
+      conversations.forEach((conv, idx) => {
+        const first = conv.length > 0 ? conv[0].content.substring(0, 30) : '(vazio)';
+        const div = document.createElement('div');
+        div.className = 'chat-item' + (idx === activeConvIndex ? ' active' : '');
+        div.textContent = first;
+        div.onclick = () => switchChat(idx);
+        hist.appendChild(div);
+      });
+    }
+
+    function handleFile(input) {
+      if (input.files.length > 0) { currentFile = input.files[0]; updateFilePreview(); }
+    }
+
+    function updateFilePreview() {
+      const preview = document.getElementById('filePreview');
+      preview.innerHTML = '';
+      if (currentFile) {
+        const pill = document.createElement('span');
+        pill.className = 'file-pill'; pill.textContent = currentFile.name;
+        preview.appendChild(pill);
+      }
+    }
+
+    function clearFileSelection() {
+      currentFile = null;
+      pendingFileContent = null;
+      document.getElementById('fileInput').value = '';
+      updateFilePreview();
+      // Não limpa o campo de texto, pois ele pode conter a prévia do arquivo
+    }
+
+    async function sendMessage() {
+      if (isLoading) return;
+      const input = document.getElementById('userInput');
+      let message = input.value.trim();
+
+      // Se há um arquivo selecionado que ainda não foi processado
+      if (currentFile) {
+        const formData = new FormData();
+        formData.append('file', currentFile);
+        try {
+          const resp = await fetch(UPLOAD_URL, { method: 'POST', body: formData });
+          const data = await resp.json();
+          if (data.error) { alert(data.error); isLoading = false; return; }
+          // Pré-visualização: injeta o conteúdo do arquivo na caixa de texto
+          const filePreview = `[Conteúdo do arquivo "${data.filename}"]\n${data.content}\n\n`;
+          if (!message) {
+            message = filePreview + "Analise detalhadamente o arquivo acima.";
+          } else {
+            message = filePreview + message;
+          }
+          input.value = message;
+          pendingFileContent = data.content; // guarda para enviar separadamente, se necessário
+          clearFileSelection();
+          // Não envia ainda; deixa o usuário revisar e enviar manualmente
+          return;
+        } catch (e) {
+          alert('Erro no upload: ' + e.message);
+          isLoading = false;
+          return;
+        }
+      }
+
+      if (!message) return;
+
+      isLoading = true;
+      appendMessage('user', message);
+      input.value = '';
+
+      if (activeConvIndex === -1) newChat();
+      const conv = conversations[activeConvIndex];
+      conv.push({ role: 'user', content: message });
+
+      // Inclui o conteúdo extraído do arquivo no payload, se existir
+      const fileContent = pendingFileContent;
+      pendingFileContent = null;
+
+      const payload = {
+        message: message,
+        file_content: fileContent,
+        history: conv.slice(0, -1).map(m => ({ role: m.role, content: m.content })),
+        jailbreak: document.getElementById('jailbreakCheckbox').checked
+      };
+
+      const assistantRow = appendMessage('assistant', '', '', true);
+      const msgContent = assistantRow.querySelector('.message-content');
+      const typingDiv = document.createElement('div');
+      typingDiv.className = 'typing-indicator';
+      typingDiv.textContent = 'Digitando...';
+      msgContent.appendChild(typingDiv);
+
+      try {
+        const response = await fetch(CHAT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        const fullThinking = data.thinking || '';
+        const fullAnswer = data.answer || '';
+
+        if (fullThinking) {
+          const thinkingDiv = createThinkingBlock(assistantRow);
+          thinkingDiv.querySelector('pre').textContent = fullThinking;
+        }
+        if (fullAnswer) {
+          const answerDiv = createAnswerDiv(assistantRow);
+          answerDiv.textContent = fullAnswer;
+        }
+        typingDiv.remove();
+        conv.push({ role: 'assistant', content: fullAnswer, thinking: fullThinking });
+        renderHistory();
+      } catch (e) {
+        typingDiv.remove();
+        assistantRow.querySelector('.message-content').innerHTML += '<br>Erro: ' + e.message;
+      }
+      isLoading = false;
+    }
+
+    function appendMessage(role, content, thinking = '', streaming = false) {
+      const container = document.getElementById('chatContainer');
+      const row = document.createElement('div');
+      row.className = 'message-row ' + role;
+      const avatar = document.createElement('div');
+      avatar.className = 'avatar';
+      avatar.textContent = role === 'user' ? 'U' : 'D';
+      row.appendChild(avatar);
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'message-content';
+      if (thinking) {
+        const details = document.createElement('details');
+        details.className = 'thinking-block';
+        const summary = document.createElement('summary');
+        summary.textContent = '🧠 Raciocínio';
+        details.appendChild(summary);
+        const pre = document.createElement('pre');
+        pre.textContent = thinking;
+        details.appendChild(pre);
+        msgDiv.appendChild(details);
+      }
+      if (content && !streaming) {
+        const textP = document.createElement('div');
+        textP.textContent = content;
+        msgDiv.appendChild(textP);
+      }
+      row.appendChild(msgDiv);
+      container.appendChild(row);
+      container.scrollTop = container.scrollHeight;
+      return row;
+    }
+
+    function createThinkingBlock(parentRow) {
+      const msgContent = parentRow.querySelector('.message-content');
+      const details = document.createElement('details');
+      details.className = 'thinking-block'; details.open = false;
+      const summary = document.createElement('summary');
+      summary.textContent = '🧠 Raciocínio'; details.appendChild(summary);
+      const pre = document.createElement('pre'); pre.textContent = '';
+      details.appendChild(pre); msgContent.appendChild(details);
+      return details;
+    }
+
+    function createAnswerDiv(parentRow) {
+      const msgContent = parentRow.querySelector('.message-content');
+      const div = document.createElement('div'); msgContent.appendChild(div);
+      return div;
+    }
+
+    newChat();
+  </script>
+</body>
+</html>
