@@ -29,6 +29,7 @@
       --sidebar-bg: #e0e0ee;
       --gradient-body: linear-gradient(160deg, #e8e8f0 0%, #d8d8e8 40%, #e0e0f0 70%, #e8e8f0 100%);
     }
+    .light-theme .message-row.assistant { background: #f9f9ff; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
@@ -253,45 +254,21 @@
     function openSidebar() { document.getElementById('sidebarMobile').classList.add('open'); document.getElementById('overlay').classList.add('show'); document.body.style.overflow = 'hidden'; }
     function closeSidebar() { document.getElementById('sidebarMobile').classList.remove('open'); document.getElementById('overlay').classList.remove('show'); document.body.style.overflow = ''; }
 
- function markdownToHtml(text) {
-  if (!text) return '';
-  // 1. Escapa HTML para evitar injeção, mas preserva entidades já existentes
-  let safe = text
-    .replace(/&(?!#?[a-zA-Z0-9]+;)/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-
-  // 2. Código inline: `texto`
-  safe = safe.replace(/`([^`]+)`/g, '<code>$1</code>');
-
-  // 3. Negrito: **texto** ou __texto__
-  safe = safe.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  safe = safe.replace(/__(.+?)__/g, '<strong>$1</strong>');
-
-  // 4. Itálico: *texto* ou _texto_ (mas não dentro de palavras)
-  safe = safe.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
-  safe = safe.replace(/(?<!_)_(?!_)(.+?)(?<!_)_(?!_)/g, '<em>$1</em>');
-
-  // 5. Blocos de citação: > texto
-  safe = safe.replace(/^&gt; (.*)$/gm, '<blockquote>$1</blockquote>');
-
-  // 6. Linha horizontal: ---
-  safe = safe.replace(/^---$/gm, '<hr>');
-
-  // 7. Listas não‑ordenadas: - item
-  safe = safe.replace(/^- (.*)$/gm, '<li>$1</li>');
-  safe = safe.replace(/(<li>.*?<\/li>)/gs, function(match) {
-    return '<ul>' + match + '</ul>';
-  });
-
-  // 8. Parágrafos (quebra dupla)
-  safe = '<p>' + safe.replace(/\n\n/g, '</p><p>') + '</p>';
-
-  // 9. Remove parágrafos vazios
-  safe = safe.replace(/<p>\s*<\/p>/g, '');
-
-  return safe;
-}
+    function markdownToHtml(text) {
+      if (!text) return '';
+      let safe = text.replace(/&(?!#?[a-zA-Z0-9]+;)/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      safe = safe.replace(/`([^`]+)`/g, '<code>$1</code>');
+      safe = safe.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      safe = safe.replace(/__(.+?)__/g, '<strong>$1</strong>');
+      safe = safe.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
+      safe = safe.replace(/(?<!_)_(?!_)(.+?)(?<!_)_(?!_)/g, '<em>$1</em>');
+      safe = safe.replace(/^&gt; (.*)$/gm, '<blockquote>$1</blockquote>');
+      safe = safe.replace(/^- (.*)$/gm, '<li>$1</li>');
+      safe = safe.replace(/(<li>.*?<\/li>)/gs, '<ul>$1</ul>');
+      safe = '<p>' + safe.replace(/\n\n/g, '</p><p>') + '</p>';
+      safe = safe.replace(/<p>\s*<\/p>/g, '');
+      return safe;
+    }
 
     async function loadConversations() {
       try {
@@ -413,6 +390,22 @@
       btn.classList.toggle('enabled', document.getElementById('userInput').value.trim().length > 0 || currentFile);
     }
 
+    // Efeito Typewriter
+    function typeWriter(element, text, speed = 8, onComplete) {
+      let i = 0;
+      function type() {
+        if (i < text.length) {
+          element.textContent += text.charAt(i);
+          i++;
+          element.parentElement.parentElement.scrollIntoView({ behavior: 'smooth', block: 'end' });
+          setTimeout(type, speed);
+        } else {
+          if (onComplete) onComplete();
+        }
+      }
+      type();
+    }
+
     async function sendMessage() {
       if (isLoading || sendLock) return;
       sendLock = true;
@@ -444,8 +437,9 @@
       const jailbreakCheckbox = document.getElementById(isMobile ? 'jailbreakCheckboxMobile' : 'jailbreakCheckboxDesktop');
       const payload = { message, file_content: fileContent, conversation_id: activeConvId, jailbreak: jailbreakCheckbox?.checked || false };
 
-      const assistantRow = appendMessage('assistant', '', '', true);
+      const assistantRow = appendMessage('assistant', '', '');
       const msgContent = assistantRow.querySelector('.message-content');
+      // Indicador de digitação
       const typingDiv = document.createElement('div');
       typingDiv.className = 'typing-dots'; typingDiv.innerHTML = '<span></span><span></span><span></span>';
       msgContent.appendChild(typingDiv);
@@ -455,15 +449,26 @@
         if (!resp.ok) throw new Error((await resp.text()).substring(0, 200));
         const data = await resp.json();
         typingDiv.remove();
+
+        // Exibe o pensamento imediatamente
         if (data.thinking) {
           const details = document.createElement('details');
           details.className = 'thinking-block';
           details.innerHTML = `<summary>🧠 Raciocínio</summary><pre>${data.thinking}</pre>`;
           msgContent.appendChild(details);
         }
-        const answerDiv = document.createElement('div');
-        answerDiv.innerHTML = markdownToHtml(data.answer || '');
-        msgContent.appendChild(answerDiv);
+
+        // Cria o elemento onde a resposta será digitada
+        const answerPlaceholder = document.createElement('div');
+        msgContent.appendChild(answerPlaceholder);
+
+        // Efeito typewriter
+        typeWriter(answerPlaceholder, data.answer || '', 8, function() {
+          // Após digitar, substitui pelo HTML formatado com Markdown
+          const formatted = markdownToHtml(data.answer || '');
+          answerPlaceholder.innerHTML = formatted;
+        });
+
         conv.messages.push({ role: 'assistant', content: data.answer, thinking: data.thinking });
         conv.id = data.conversation_id;
         if (conv.title === 'Nova conversa' || conv.title === '(vazio)') {
@@ -485,8 +490,11 @@
         details.innerHTML = `<summary>🧠 Raciocínio</summary><pre>${thinking}</pre>`;
         msgDiv.appendChild(details);
       }
-      const textDiv = document.createElement('div');
-      textDiv.innerHTML = markdownToHtml(content); msgDiv.appendChild(textDiv);
+      if (content) {
+        const textDiv = document.createElement('div');
+        textDiv.innerHTML = markdownToHtml(content);
+        msgDiv.appendChild(textDiv);
+      }
       row.appendChild(msgDiv); container.appendChild(row);
       container.scrollTop = container.scrollHeight; return row;
     }
