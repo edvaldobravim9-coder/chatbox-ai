@@ -334,7 +334,7 @@ def auth_google_callback():
 
 @app.route('/auth/github')
 def auth_github():
-    redirect_uri = 'https://chatbox-ai.onrender.com/auth/google/callback'
+    redirect_uri = 'https://chatbox-ai.onrender.com/auth/github/callback'
     return github.authorize_redirect(redirect_uri)
 
 @app.route('/auth/github/callback')
