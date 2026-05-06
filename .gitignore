@@ -1,2 +1,6 @@
 deepseek-free-api/
 *.exe
+*.json
+ids*.txt
+consert*.txt
+logs*.txt
