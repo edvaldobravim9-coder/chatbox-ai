@@ -211,17 +211,11 @@ def extract_text(file_path):
     return text or "[Conteúdo vazio]"
 
 def ask(context, jailbreak=False):
-    system = JAILBREAK_SYSTEM if jailbreak else DEFAULT_SYSTEM
-    full_prompt = f"System: {system}\n\n{context}"
-    old_stdout = sys.stdout
-    sys.stdout = StringIO()
-    try:
-        response = model.generate_content(full_prompt, stream=True)
-        stream_output = sys.stdout.getvalue()
-        answer = response.text.strip()
-    finally: sys.stdout = old_stdout
+    # ... (código existente) ...
     clean = re.sub(r'\x1b\[[0-9;]*m', '', stream_output)
     thinking = clean.replace(answer, '').strip()
+    # Remove barras invertidas residuais que podem quebrar Markdown
+    thinking = thinking.replace('\\', '')
     return thinking, answer
 
 def get_or_create_guest():

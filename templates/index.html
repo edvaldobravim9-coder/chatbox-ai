@@ -253,20 +253,45 @@
     function openSidebar() { document.getElementById('sidebarMobile').classList.add('open'); document.getElementById('overlay').classList.add('show'); document.body.style.overflow = 'hidden'; }
     function closeSidebar() { document.getElementById('sidebarMobile').classList.remove('open'); document.getElementById('overlay').classList.remove('show'); document.body.style.overflow = ''; }
 
-    function markdownToHtml(text) {
-      if (!text) return '';
-      let safe = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      safe = safe.replace(/`([^`]+)`/g, '<code>$1</code>');
-      safe = safe.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-      safe = safe.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
-      safe = safe.replace(/^&gt; (.*)$/gm, '<blockquote>$1</blockquote>');
-      safe = safe.replace(/^- (.*)$/gm, '<li>$1</li>');
-      safe = safe.replace(/(<li>.+<\/li>)/gs, '<ul>$1</ul>');
-      safe = safe.replace(/^---$/gm, '<hr>');
-      safe = safe.replace(/\n\n/g, '</p><p>');
-      safe = '<p>' + safe + '</p>';
-      return safe;
-    }
+ function markdownToHtml(text) {
+  if (!text) return '';
+  // 1. Escapa HTML para evitar injeção, mas preserva entidades já existentes
+  let safe = text
+    .replace(/&(?!#?[a-zA-Z0-9]+;)/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  // 2. Código inline: `texto`
+  safe = safe.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+  // 3. Negrito: **texto** ou __texto__
+  safe = safe.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  safe = safe.replace(/__(.+?)__/g, '<strong>$1</strong>');
+
+  // 4. Itálico: *texto* ou _texto_ (mas não dentro de palavras)
+  safe = safe.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
+  safe = safe.replace(/(?<!_)_(?!_)(.+?)(?<!_)_(?!_)/g, '<em>$1</em>');
+
+  // 5. Blocos de citação: > texto
+  safe = safe.replace(/^&gt; (.*)$/gm, '<blockquote>$1</blockquote>');
+
+  // 6. Linha horizontal: ---
+  safe = safe.replace(/^---$/gm, '<hr>');
+
+  // 7. Listas não‑ordenadas: - item
+  safe = safe.replace(/^- (.*)$/gm, '<li>$1</li>');
+  safe = safe.replace(/(<li>.*?<\/li>)/gs, function(match) {
+    return '<ul>' + match + '</ul>';
+  });
+
+  // 8. Parágrafos (quebra dupla)
+  safe = '<p>' + safe.replace(/\n\n/g, '</p><p>') + '</p>';
+
+  // 9. Remove parágrafos vazios
+  safe = safe.replace(/<p>\s*<\/p>/g, '');
+
+  return safe;
+}
 
     async function loadConversations() {
       try {
