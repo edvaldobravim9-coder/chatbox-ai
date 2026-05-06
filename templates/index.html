@@ -254,6 +254,7 @@
     let pendingFileContent = null;
     let isLoading = false;
     let isMobile = window.innerWidth <= 1024;
+    let sendLock = false;
 
     function detectPlatform() {
       const ua = navigator.userAgent;
@@ -383,7 +384,8 @@
     function clearFileSelection() {
       currentFile = null;
       pendingFileContent = null;
-      document.getElementById('fileInput').value = '';
+      const fileInput = document.getElementById('fileInput');
+      if (fileInput) fileInput.value = '';
       updateFilePreview();
       updateSendButton();
     }
@@ -400,20 +402,26 @@
     }
 
     async function sendMessage() {
-      if (isLoading) return;
+      // Bloqueio de envio duplicado
+      if (isLoading || sendLock) return;
+      sendLock = true;
+
       const input = document.getElementById('userInput');
       let message = input.value.trim();
 
-      // Se há arquivo para fazer upload, faz primeiro e já envia em seguida
+      // Se há arquivo para fazer upload, faz primeiro e depois envia
       if (currentFile && !pendingFileContent) {
         const formData = new FormData();
         formData.append('file', currentFile);
         try {
           const resp = await fetch(UPLOAD_URL, { method: 'POST', body: formData });
+          if (!resp.ok) {
+            const errorText = await resp.text();
+            throw new Error(errorText.substring(0, 100));
+          }
           const data = await resp.json();
-          if (data.error) { alert(data.error); return; }
           pendingFileContent = data.content;
-          // Remove o arquivo da interface após upload bem-sucedido
+          // Remove o arquivo da interface
           currentFile = null;
           document.getElementById('fileInput').value = '';
           updateFilePreview();
@@ -421,11 +429,15 @@
           if (!message) message = `Analise o arquivo "${data.filename}".`;
         } catch (e) {
           alert('Erro no upload: ' + e.message);
+          sendLock = false;
           return;
         }
       }
 
-      if (!message) return;
+      if (!message) {
+        sendLock = false;
+        return;
+      }
 
       isLoading = true;
       appendMessage('user', message);
@@ -461,6 +473,10 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(errorText.substring(0, 200));
+        }
         const data = await response.json();
         const fullThinking = data.thinking || '';
         const fullAnswer = data.answer || '';
@@ -484,13 +500,13 @@
           conv.title = message.substring(0, 50) + (message.length > 50 ? '...' : '');
         }
         renderHistory();
-        // Limpa completamente após envio
         clearFileSelection();
       } catch (e) {
         typingDiv.remove();
-        msgContent.innerHTML += '<br>Erro: ' + e.message;
+        msgContent.innerHTML += `<br>❌ Erro: ${e.message}`;
       }
       isLoading = false;
+      sendLock = false;
     }
 
     function appendMessage(role, content, thinking = '', streaming = false) {
