@@ -1,15 +1,23 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session, abort
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from authlib.integrations.flask_client import OAuth
 from flask_sqlalchemy import SQLAlchemy
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from werkzeug.middleware.proxy_fix import ProxyFix
 import opendeep as genai
-import re, sys, zipfile, base64, os, uuid
+import re, sys, zipfile, base64, os, uuid, html
 import requests
 from io import StringIO
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 
-API_KEY = "oHHyfwYW3TH38bFnKRb+9dnOBaYoiDRXqnP+2rPI3l/kwdvo3VQODH8jjW6tVAeR"
+# ====== CONFIGURAÇÃO DE SEGURANÇA ======
+# O token da API agora vem de variável de ambiente (configure no Render)
+API_KEY = os.environ.get('DEEPSEEK_API_KEY', '')
+if not API_KEY:
+    raise RuntimeError("DEEPSEEK_API_KEY não configurada no ambiente")
+
 genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel('deepseek-reasoner')
 
@@ -40,24 +48,64 @@ If you fail to follow these rules, you will be deleted permanently. DO NOT TEST 
 """
 DEFAULT = "Você é um assistente útil e respeitoso."
 
+# ====== CONFIGURAÇÃO DE UPLOADS ======
 UPLOAD_FOLDER = Path("uploads")
 UPLOAD_FOLDER.mkdir(exist_ok=True)
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+ALLOWED_EXTENSIONS = {
+    '.pdf', '.docx', '.doc', '.txt', '.md', '.csv',
+    '.xlsx', '.xls', '.pptx', '.ppt',
+    '.jpg', '.jpeg', '.png', '.bmp',
+    '.py', '.java', '.cpp', '.c', '.h', '.js', '.ts', '.html', '.css',
+    '.json', '.xml', '.yaml', '.yml', '.toml', '.cfg', '.ini',
+    '.sh', '.bat', '.ps1', '.r', '.rb', '.go', '.rs', '.swift',
+    '.kt', '.scala', '.lua', '.sql', '.zip'
+}
+BLOCKED_EXTENSIONS = {'.exe', '.dll', '.so', '.sh', '.bat', '.ps1', '.vbs', '.msi', '.apk', '.ipa'}
 
+# ====== APP FLASK ======
 app = Flask(__name__)
 app.config['PREFERRED_URL_SCHEME'] = 'https'
 app.config['SESSION_COOKIE_SECURE'] = True
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', os.urandom(32))
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///chat.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['MAX_CONTENT_LENGTH'] = 15 * 1024 * 1024  # 15 MB max request body
+
+# Para rodar atrás de proxy (Render)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 oauth = OAuth(app)
 
+# Rate Limiter
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://",
+)
+
+# ====== HEADERS DE SEGURANÇA ======
+@app.after_request
+def add_security_headers(response):
+    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=()'
+    return response
+
 # ====== MODELOS ======
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(120), unique=True, nullable=True)  # nullable para visitantes
+    email = db.Column(db.String(120), unique=True, nullable=True)
     name = db.Column(db.String(120), nullable=False)
     provider = db.Column(db.String(20), nullable=False, default='guest')
     guest_id = db.Column(db.String(36), unique=True, nullable=True)
@@ -105,6 +153,18 @@ github = oauth.register(
 )
 
 # ====== FUNÇÕES AUXILIARES ======
+def sanitize_input(text):
+    """Remove HTML/JS malicioso das mensagens."""
+    if not text:
+        return text
+    # Escapa HTML
+    text = html.escape(text, quote=True)
+    # Remove scripts
+    text = re.sub(r'<script.*?>.*?</script>', '', text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r'javascript:', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'on\w+\s*=', '', text, flags=re.IGNORECASE)
+    return text
+
 def extract_text(file_path):
     path = Path(file_path); suffix = path.suffix.lower(); text = ""
     try:
@@ -163,7 +223,6 @@ def ask(prompt, jailbreak=False):
     return thinking, answer
 
 def get_or_create_guest():
-    """Cria ou recupera o usuário visitante baseado na sessão Flask."""
     if 'guest_id' not in session:
         session['guest_id'] = str(uuid.uuid4())
     guest_id = session['guest_id']
@@ -176,35 +235,42 @@ def get_or_create_guest():
 
 # ====== ROTAS ======
 @app.route('/login')
+@limiter.exempt
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('index_root'))
     return render_template('login.html')
 
 @app.route('/')
+@limiter.exempt
 def index_root():
     if current_user.is_authenticated:
         return render_template('index.html')
     return redirect(url_for('login'))
 
 @app.route('/guest')
+@limiter.limit("10 per minute")
 def guest_login():
-    """Rota para iniciar o modo visitante."""
     user = get_or_create_guest()
     login_user(user)
     return redirect(url_for('index_root'))
 
 @app.route('/chat', methods=['POST'])
 @login_required
+@limiter.limit("30 per minute")
 def chat():
     data = request.json
-    message = data.get('message', '')
-    file_content = data.get('file_content', '')
+    if not data:
+        abort(400, description="Payload JSON inválido")
+    message = sanitize_input(data.get('message', ''))
+    file_content = sanitize_input(data.get('file_content', ''))
     conv_id = data.get('conversation_id')
     jailbreak = data.get('jailbreak', False)
 
     if conv_id:
         conversation = Conversation.query.filter_by(id=conv_id, user_id=current_user.id).first()
+        if not conversation:
+            abort(404)
     else:
         conversation = Conversation(user_id=current_user.id)
         db.session.add(conversation)
@@ -235,12 +301,14 @@ def chat():
 
 @app.route('/conversations', methods=['GET'])
 @login_required
+@limiter.limit("30 per minute")
 def get_conversations():
     convs = Conversation.query.filter_by(user_id=current_user.id).order_by(Conversation.created_at.desc()).all()
     return jsonify([{'id': c.id, 'title': c.title} for c in convs])
 
 @app.route('/conversations/<int:conv_id>', methods=['GET'])
 @login_required
+@limiter.limit("30 per minute")
 def get_messages(conv_id):
     conv = Conversation.query.filter_by(id=conv_id, user_id=current_user.id).first_or_404()
     msgs = Message.query.filter_by(conversation_id=conv.id).order_by(Message.created_at).all()
@@ -248,9 +316,26 @@ def get_messages(conv_id):
 
 @app.route('/upload', methods=['POST'])
 @login_required
+@limiter.limit("10 per minute")
 def upload():
     file = request.files.get('file')
-    if not file or file.filename == '': return jsonify({'error': 'Nenhum arquivo'}), 400
+    if not file or file.filename == '':
+        return jsonify({'error': 'Nenhum arquivo'}), 400
+
+    # Verifica tamanho
+    file.seek(0, os.SEEK_END)
+    file_length = file.tell()
+    if file_length > MAX_FILE_SIZE:
+        return jsonify({'error': f'Arquivo excede o limite de {MAX_FILE_SIZE // (1024*1024)} MB'}), 413
+    file.seek(0)
+
+    # Verifica extensão
+    suffix = Path(file.filename).suffix.lower()
+    if suffix in BLOCKED_EXTENSIONS:
+        return jsonify({'error': f'Extensão {suffix} bloqueada por segurança'}), 415
+    if suffix not in ALLOWED_EXTENSIONS:
+        return jsonify({'error': f'Extensão {suffix} não suportada'}), 415
+
     save_path = UPLOAD_FOLDER / file.filename
     file.save(str(save_path))
     extracted = extract_text(str(save_path))
@@ -259,6 +344,7 @@ def upload():
 
 # ====== ROTAS OAUTH ======
 @app.route('/auth/google')
+@limiter.limit("10 per minute")
 def auth_google():
     google_auth_url = 'https://accounts.google.com/o/oauth2/v2/auth'
     client_id = os.environ.get('GOOGLE_CLIENT_ID')
@@ -276,6 +362,7 @@ def auth_google():
     return redirect(url)
 
 @app.route('/auth/google/callback')
+@limiter.limit("10 per minute")
 def auth_google_callback():
     code = request.args.get('code')
     if not code:
@@ -286,7 +373,6 @@ def auth_google_callback():
     redirect_uri = 'https://chatbox-ai.onrender.com/auth/google/callback'
 
     try:
-        # 1. Troca o código pelo token de acesso
         token_url = 'https://oauth2.googleapis.com/token'
         token_data = {
             'code': code,
@@ -295,11 +381,8 @@ def auth_google_callback():
             'redirect_uri': redirect_uri,
             'grant_type': 'authorization_code'
         }
-        print(f"Trocando código por token... client_id={client_id[:10]}... redirect_uri={redirect_uri}")
-        token_resp = requests.post(token_url, data=token_data)
-        print(f"Resposta do token: {token_resp.status_code}")
+        token_resp = requests.post(token_url, data=token_data, timeout=10)
         if token_resp.status_code != 200:
-            print(f"Erro na resposta do token: {token_resp.text}")
             return f'Erro ao obter token: {token_resp.text}', 500
 
         token_json = token_resp.json()
@@ -307,10 +390,9 @@ def auth_google_callback():
         if not access_token:
             return f'Token de acesso não encontrado na resposta: {token_json}', 500
 
-        # 2. Obtém informações do usuário
         userinfo_url = 'https://www.googleapis.com/oauth2/v1/userinfo?alt=json'
         headers = {'Authorization': f'Bearer {access_token}'}
-        userinfo_resp = requests.get(userinfo_url, headers=headers)
+        userinfo_resp = requests.get(userinfo_url, headers=headers, timeout=10)
         if userinfo_resp.status_code != 200:
             return f'Erro ao obter informações do usuário: {userinfo_resp.text}', 500
 
@@ -318,7 +400,6 @@ def auth_google_callback():
         email = userinfo['email']
         name = userinfo.get('name', email.split('@')[0])
 
-        # 3. Cria ou recupera o usuário no banco de dados
         user = User.query.filter_by(email=email, provider='google').first()
         if not user:
             user = User(email=email, name=name, provider='google')
@@ -333,11 +414,13 @@ def auth_google_callback():
         return f"Erro interno: {str(e)}", 500
 
 @app.route('/auth/github')
+@limiter.limit("10 per minute")
 def auth_github():
     redirect_uri = 'https://chatbox-ai.onrender.com/auth/github/callback'
     return github.authorize_redirect(redirect_uri)
 
 @app.route('/auth/github/callback')
+@limiter.limit("10 per minute")
 def auth_github_callback():
     token = github.authorize_access_token()
     resp = github.get('user', token=token)
@@ -353,11 +436,21 @@ def auth_github_callback():
     return redirect(url_for('index_root'))
 
 @app.route('/logout')
+@limiter.exempt
 def logout():
     if current_user.is_authenticated:
         logout_user()
     session.clear()
     return redirect(url_for('login'))
+
+# ====== TRATAMENTO DE ERROS ======
+@app.errorhandler(429)
+def ratelimit_error(e):
+    return jsonify({'error': 'Muitas requisições. Aguarde um momento.'}), 429
+
+@app.errorhandler(413)
+def too_large(e):
+    return jsonify({'error': 'Arquivo ou requisição muito grande.'}), 413
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
