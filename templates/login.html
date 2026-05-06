@@ -2,77 +2,75 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Chatbox - Login</title>
   <style>
+    :root {
+      --bg-primary: #0b0b1e;
+      --bg-secondary: #151538;
+      --text-primary: #e8e8f8;
+      --text-secondary: #aaaacc;
+      --brand-blue: #4f7dff;
+      --brand-green: #4ddfb4;
+      --border-color: #2a2a5a;
+      --card-bg: rgba(30, 30, 60, 0.9);
+    }
+    .light-theme {
+      --bg-primary: #f0f0f5;
+      --bg-secondary: #ffffff;
+      --text-primary: #1a1a2e;
+      --text-secondary: #555;
+      --border-color: #ddd;
+      --card-bg: rgba(255, 255, 255, 0.95);
+    }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: 'Segoe UI', system-ui, sans-serif;
-      background: linear-gradient(135deg, #0a0a2e 0%, #1a1040 50%, #0a1240 100%);
-      color: #e0e0f0;
+      background: linear-gradient(135deg, var(--bg-primary) 0%, #1a1040 50%, #0a1240 100%);
+      color: var(--text-primary);
       display: flex;
       align-items: center;
       justify-content: center;
       min-height: 100vh;
+      transition: background 0.3s;
+    }
+    .light-theme body {
+      background: linear-gradient(135deg, #e8e8f0 0%, #d0d0e0 50%, #c8c8e0 100%);
     }
     .login-card {
-      background: rgba(30, 30, 60, 0.9);
-      border: 1px solid #3a3a6e;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
       border-radius: 16px;
       padding: 40px;
       text-align: center;
       max-width: 420px;
       width: 90%;
       box-shadow: 0 0 30px rgba(80, 80, 180, 0.2);
+      transition: all 0.3s;
     }
-    .login-card h1 {
-      font-size: 28px;
-      margin-bottom: 8px;
-      color: #ffffff;
-    }
-    .login-card p {
-      color: #a0a0c0;
-      margin-bottom: 32px;
-      font-size: 14px;
-    }
+    .login-card h1 { font-size: 28px; margin-bottom: 8px; color: var(--text-primary); }
+    .login-card p { color: var(--text-secondary); margin-bottom: 32px; font-size: 14px; }
     .oauth-btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      width: 100%;
-      padding: 12px;
-      border: 1px solid #4a4a8a;
-      border-radius: 10px;
-      background: rgba(40, 40, 80, 0.6);
-      color: #d0d0f0;
-      font-size: 15px;
-      font-weight: 500;
-      cursor: pointer;
-      text-decoration: none;
-      margin-bottom: 12px;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      width: 100%; padding: 12px; border: 1px solid #4a4a8a;
+      border-radius: 10px; background: rgba(40, 40, 80, 0.6);
+      color: #d0d0f0; font-size: 15px; font-weight: 500;
+      cursor: pointer; text-decoration: none; margin-bottom: 12px;
       transition: background 0.2s;
     }
     .oauth-btn:hover { background: rgba(60, 60, 120, 0.8); }
     .oauth-btn img { width: 20px; height: 20px; }
-    .separator {
-      display: flex;
-      align-items: center;
-      margin: 20px 0;
-      color: #6666a0;
-    }
-    .separator::before, .separator::after {
-      content: '';
-      flex: 1;
-      border-bottom: 1px solid #3a3a6e;
-    }
-    .separator span {
-      padding: 0 10px;
-      font-size: 12px;
+    .separator { display: flex; align-items: center; margin: 20px 0; color: #6666a0; }
+    .separator::before, .separator::after { content: ''; flex: 1; border-bottom: 1px solid #3a3a6e; }
+    .separator span { padding: 0 10px; font-size: 12px; }
+    .theme-toggle {
+      position: absolute; top: 15px; right: 15px;
+      background: none; border: none; font-size: 24px; cursor: pointer;
     }
   </style>
 </head>
 <body>
+  <button class="theme-toggle" onclick="toggleTheme()" id="themeToggle">🌙</button>
   <div class="login-card">
     <h1>💬 Chatbox</h1>
     <p>Escolha como deseja continuar</p>
@@ -87,5 +85,16 @@
       👤 Continuar como Visitante
     </a>
   </div>
+  <script>
+    const theme = localStorage.getItem('theme') || 'dark';
+    if (theme === 'light') document.documentElement.classList.add('light-theme');
+    document.getElementById('themeToggle').textContent = theme === 'light' ? '☀️' : '🌙';
+
+    function toggleTheme() {
+      const isLight = document.documentElement.classList.toggle('light-theme');
+      localStorage.setItem('theme', isLight ? 'light' : 'dark');
+      document.getElementById('themeToggle').textContent = isLight ? '☀️' : '🌙';
+    }
+  </script>
 </body>
 </html>

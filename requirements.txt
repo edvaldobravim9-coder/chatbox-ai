@@ -2,6 +2,7 @@ Flask
 Flask-Login
 Authlib
 Flask-SQLAlchemy
+Flask-Limiter
 opendeep
 PyPDF2
 python-docx
@@ -10,4 +11,3 @@ python-pptx
 Pillow
 pytesseract
 requests
-Flask-Limiter
