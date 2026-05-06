@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <title>Conversa — Admin</title>
+  <title>Conversa - Admin</title>
   <style>
     body { font-family: 'Segoe UI', sans-serif; background: #0b0b1e; color: #e8e8f8; padding: 20px; }
     h1 { color: #4f7dff; }
@@ -18,7 +18,6 @@
   <a href="/admin" class="back-link">← Voltar ao Painel</a>
   <h1>💬 {{ conv.title }}</h1>
   <p>Criada em {{ conv.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
-
   {% for m in messages %}
   <div class="msg {{ m.role }}">
     <b>{{ '👤 Usuário' if m.role == 'user' else '🤖 Assistente' }}</b>

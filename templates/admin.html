@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <title>Admin — Chatbox</title>
+  <title>Admin - Chatbox</title>
   <style>
     body { font-family: 'Segoe UI', sans-serif; background: #0b0b1e; color: #e8e8f8; padding: 20px; }
     h1, h2 { color: #4f7dff; }
@@ -19,14 +19,12 @@
 <body>
   <h1>🔐 Painel de Administração</h1>
   <a href="/" class="back-link">← Voltar ao Chat</a>
-
   <div>
     <div class="stat-box"><b>{{ total_users }}</b>Usuários</div>
     <div class="stat-box"><b>{{ total_conversations }}</b>Conversas</div>
     <div class="stat-box"><b>{{ total_messages }}</b>Mensagens</div>
     <div class="stat-box"><b>{{ total_uploads }}</b>Uploads</div>
   </div>
-
   <h2>📋 Últimos Usuários</h2>
   <table>
     <tr><th>ID</th><th>Nome</th><th>Email</th><th>Provedor</th><th>Ações</th></tr>
@@ -40,7 +38,6 @@
     </tr>
     {% endfor %}
   </table>
-
   <h2>🕐 Atividades Recentes</h2>
   <table>
     <tr><th>Data</th><th>Usuário</th><th>Ação</th><th>Detalhes</th><th>IP</th></tr>
