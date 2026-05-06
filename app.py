@@ -348,7 +348,7 @@ def upload():
 def auth_google():
     google_auth_url = 'https://accounts.google.com/o/oauth2/v2/auth'
     client_id = os.environ.get('GOOGLE_CLIENT_ID')
-    redirect_uri = 'https://chatbox-ai.onrender.com/auth/google/callback'
+    redirect_uri = 'https://chatbox-ai-2kn8.onrender.com/auth/google/callback'
     scope = 'openid email profile'
     params = {
         'client_id': client_id,
@@ -370,7 +370,7 @@ def auth_google_callback():
 
     client_id = os.environ.get('GOOGLE_CLIENT_ID')
     client_secret = os.environ.get('GOOGLE_CLIENT_SECRET')
-    redirect_uri = 'https://chatbox-ai.onrender.com/auth/google/callback'
+    redirect_uri = 'https://chatbox-ai-2kn8.onrender.com/auth/google/callback'
 
     try:
         token_url = 'https://oauth2.googleapis.com/token'
@@ -416,7 +416,7 @@ def auth_google_callback():
 @app.route('/auth/github')
 @limiter.limit("10 per minute")
 def auth_github():
-    redirect_uri = 'https://chatbox-ai.onrender.com/auth/github/callback'
+    redirect_uri = 'https://chatbox-ai-2kn8.onrender.com/auth/github/callback'
     return github.authorize_redirect(redirect_uri)
 
 @app.route('/auth/github/callback')
