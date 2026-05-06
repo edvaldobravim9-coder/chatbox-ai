@@ -157,9 +157,51 @@
 
     .message-content {
       line-height: 1.7;
-      white-space: pre-wrap;
       flex: 1;
       font-size: 15px;
+    }
+
+    /* Formatação Markdown renderizada */
+    .message-content strong {
+      color: #ffffff;
+      font-weight: 700;
+    }
+
+    .message-content em {
+      color: #e0e0e0;
+      font-style: italic;
+    }
+
+    .message-content code {
+      background: #2d2d3a;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+      font-size: 13px;
+      color: #f0a050;
+    }
+
+    .message-content blockquote {
+      border-left: 3px solid var(--brand-green);
+      padding-left: 12px;
+      margin: 8px 0;
+      color: #a0a0b0;
+      font-style: italic;
+    }
+
+    .message-content ul, .message-content ol {
+      padding-left: 20px;
+      margin: 6px 0;
+    }
+
+    .message-content li {
+      margin: 3px 0;
+    }
+
+    .message-content hr {
+      border: none;
+      border-top: 1px solid var(--border-color);
+      margin: 12px 0;
     }
 
     .thinking-block {
@@ -179,37 +221,16 @@
       user-select: none;
     }
 
-    .file-badge {
-      background: #2d2d3a;
-      padding: 6px 12px;
-      border-radius: 8px;
-      font-size: 13px;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      margin-bottom: 8px;
+    .thinking-block pre {
+      white-space: pre-wrap;
+      font-family: inherit;
+      margin-top: 6px;
     }
 
     /* ====== INPUT BAR ====== */
     .input-area {
       padding: 12px 16% 24px;
       background: linear-gradient(180deg, transparent 0%, var(--surface-primary) 20%);
-    }
-
-    .jailbreak-toggle {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      color: #ff6b6b;
-      font-size: 13px;
-      margin-bottom: 10px;
-      padding-left: 2px;
-    }
-
-    .jailbreak-toggle input[type="checkbox"] {
-      accent-color: #ff6b6b;
-      width: 15px;
-      height: 15px;
     }
 
     .input-wrapper {
@@ -347,6 +368,45 @@
     let currentFile = null;
     let pendingFileContent = null;
     let isLoading = false;
+
+    // ========== CONVERSOR MARKDOWN PARA HTML ==========
+    function markdownToHtml(text) {
+      if (!text) return '';
+
+      // Escapa HTML para evitar injeção
+      let safe = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+      // Código inline: `texto`
+      safe = safe.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+      // Negrito: **texto**
+      safe = safe.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+      // Itálico: *texto* (cuidado para não pegar asteriscos já processados)
+      safe = safe.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
+
+      // Blocos de citação: > texto
+      safe = safe.replace(/^&gt; (.*)$/gm, '<blockquote>$1</blockquote>');
+
+      // Listas não ordenadas: - item
+      safe = safe.replace(/^- (.*)$/gm, '<li>$1</li>');
+      safe = safe.replace(/(<li>.+<\/li>)/gs, '<ul>$1</ul>');
+
+      // Linha horizontal: ---
+      safe = safe.replace(/^---$/gm, '<hr>');
+
+      // Quebras de linha
+      safe = safe.replace(/\n\n/g, '</p><p>');
+      safe = '<p>' + safe + '</p>';
+
+      // Remove parágrafos vazios
+      safe = safe.replace(/<p>\s*<\/p>/g, '');
+
+      return safe;
+    }
 
     // ========== FUNÇÕES DE GERENCIAMENTO ==========
     function newChat() {
@@ -492,7 +552,8 @@
         }
         if (fullAnswer) {
           const answerDiv = document.createElement('div');
-          answerDiv.textContent = fullAnswer;
+          // Converte Markdown para HTML antes de exibir
+          answerDiv.innerHTML = markdownToHtml(fullAnswer);
           msgContent.appendChild(answerDiv);
         }
         conv.push({ role: 'assistant', content: fullAnswer, thinking: fullThinking });
@@ -521,9 +582,10 @@
         msgDiv.appendChild(details);
       }
       if (content && !streaming) {
-        const textP = document.createElement('div');
-        textP.textContent = content;
-        msgDiv.appendChild(textP);
+        const textDiv = document.createElement('div');
+        // Converte Markdown para HTML
+        textDiv.innerHTML = markdownToHtml(content);
+        msgDiv.appendChild(textDiv);
       }
       row.appendChild(msgDiv);
       container.appendChild(row);
