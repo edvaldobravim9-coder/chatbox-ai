@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <title>Usuário — Admin</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #0b0b1e; color: #e8e8f8; padding: 20px; }
+    h1, h2 { color: #4f7dff; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #2a2a5a; }
+    th { background: #151538; }
+    tr:hover { background: #1e1e4a; }
+    a { color: #4ddfb4; text-decoration: none; }
+    .back-link { display: inline-block; margin: 16px 0; color: #4f7dff; }
+  </style>
+</head>
+<body>
+  <a href="/admin" class="back-link">← Voltar ao Painel</a>
+  <h1>👤 {{ user.name }}</h1>
+  <p>Email: {{ user.email or 'Visitante' }} | Provedor: {{ user.provider }}</p>
+
+  <h2>💬 Conversas</h2>
+  <table>
+    <tr><th>ID</th><th>Título</th><th>Data</th><th>Ações</th></tr>
+    {% for c in conversations %}
+    <tr>
+      <td>{{ c.id }}</td>
+      <td>{{ c.title }}</td>
+      <td>{{ c.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+      <td><a href="/admin/conversation/{{ c.id }}">🔍 Ver</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <h2>🕐 Atividades</h2>
+  <table>
+    <tr><th>Data</th><th>Ação</th><th>Detalhes</th></tr>
+    {% for a in activities %}
+    <tr>
+      <td>{{ a.created_at.strftime('%d/%m %H:%M') }}</td>
+      <td>{{ a.action }}</td>
+      <td>{{ a.detail }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</body>
+</html>

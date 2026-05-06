@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin — Chatbox</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #0b0b1e; color: #e8e8f8; padding: 20px; }
+    h1, h2 { color: #4f7dff; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #2a2a5a; }
+    th { background: #151538; }
+    tr:hover { background: #1e1e4a; }
+    a { color: #4ddfb4; text-decoration: none; }
+    .stat-box { display: inline-block; background: #151538; border-radius: 10px; padding: 16px; margin: 8px; min-width: 120px; text-align: center; }
+    .stat-box b { display: block; font-size: 28px; color: #4ddfb4; }
+    .back-link { display: inline-block; margin: 16px 0; color: #4f7dff; }
+  </style>
+</head>
+<body>
+  <h1>🔐 Painel de Administração</h1>
+  <a href="/" class="back-link">← Voltar ao Chat</a>
+
+  <div>
+    <div class="stat-box"><b>{{ total_users }}</b>Usuários</div>
+    <div class="stat-box"><b>{{ total_conversations }}</b>Conversas</div>
+    <div class="stat-box"><b>{{ total_messages }}</b>Mensagens</div>
+    <div class="stat-box"><b>{{ total_uploads }}</b>Uploads</div>
+  </div>
+
+  <h2>📋 Últimos Usuários</h2>
+  <table>
+    <tr><th>ID</th><th>Nome</th><th>Email</th><th>Provedor</th><th>Ações</th></tr>
+    {% for u in users %}
+    <tr>
+      <td>{{ u.id }}</td>
+      <td>{{ u.name }}</td>
+      <td>{{ u.email or 'Visitante' }}</td>
+      <td>{{ u.provider }}</td>
+      <td><a href="/admin/user/{{ u.id }}">🔍 Ver</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <h2>🕐 Atividades Recentes</h2>
+  <table>
+    <tr><th>Data</th><th>Usuário</th><th>Ação</th><th>Detalhes</th><th>IP</th></tr>
+    {% for a in recent_activities %}
+    <tr>
+      <td>{{ a.created_at.strftime('%d/%m %H:%M') }}</td>
+      <td>{{ a.user.name if a.user else '—' }}</td>
+      <td>{{ a.action }}</td>
+      <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;">{{ a.detail }}</td>
+      <td>{{ a.ip_address }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</body>
+</html>
