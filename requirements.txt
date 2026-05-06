@@ -1,4 +1,7 @@
 Flask
+Flask-Login
+Authlib
+Flask-SQLAlchemy
 opendeep
 PyPDF2
 python-docx
