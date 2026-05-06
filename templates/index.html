@@ -31,7 +31,6 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    /* ====== SIDEBAR ====== */
     .sidebar {
       width: 260px;
       background: var(--sidebar-bg);
@@ -142,7 +141,6 @@
       gap: 8px;
     }
 
-    /* ====== MAIN ====== */
     .main {
       flex: 1;
       display: flex;
@@ -238,7 +236,6 @@
       margin-top: 6px;
     }
 
-    /* ====== INPUT BAR ====== */
     .input-area {
       padding: 12px 16% 24px;
       background: linear-gradient(180deg, transparent 0%, #0b0b1e 20%);
@@ -377,10 +374,10 @@
     let activeConvIndex = -1;
     let activeConvId = null;
     let currentFile = null;
-    let pendingFileContent = null;
+    let pendingFileContent = null; // Armazena o texto extraído, sem exibir no textarea
+    let pendingFileName = null; // Armazena o nome do arquivo, para usar na mensagem se vazia
     let isLoading = false;
 
-    // ========== MARKDOWN PARSER ==========
     function markdownToHtml(text) {
       if (!text) return '';
       let safe = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -397,7 +394,6 @@
       return safe;
     }
 
-    // ========== CARREGAR CONVERSAS DO SERVIDOR ==========
     async function loadConversations() {
       try {
         const resp = await fetch(CONVERSATIONS_URL);
@@ -462,6 +458,7 @@
       if (input.files.length > 0) {
         currentFile = input.files[0];
         updateFilePreview();
+        updateSendButton(); // Atualiza o botão de envio
       }
     }
 
@@ -479,8 +476,10 @@
     function clearFileSelection() {
       currentFile = null;
       pendingFileContent = null;
+      pendingFileName = null;
       document.getElementById('fileInput').value = '';
       updateFilePreview();
+      updateSendButton();
     }
 
     function autoResize(el) {
@@ -491,54 +490,69 @@
     function updateSendButton() {
       const btn = document.getElementById('sendButton');
       const input = document.getElementById('userInput');
+      // Habilita o botão se houver texto OU arquivo selecionado
       btn.classList.toggle('enabled', input.value.trim().length > 0 || currentFile);
     }
 
-    // ========== ENVIO DE MENSAGENS ==========
     async function sendMessage() {
       if (isLoading) return;
       const input = document.getElementById('userInput');
       let message = input.value.trim();
 
-      if (currentFile) {
+      // Se há arquivo selecionado e ainda não foi extraído
+      if (currentFile && !pendingFileContent) {
         const formData = new FormData();
         formData.append('file', currentFile);
         try {
           const resp = await fetch(UPLOAD_URL, { method: 'POST', body: formData });
           const data = await resp.json();
           if (data.error) { alert(data.error); return; }
-          const filePreview = `[Arquivo "${data.filename}"]\n${data.content}\n\n`;
-          if (!message) message = filePreview + "Analise o arquivo acima.";
-          else message = filePreview + message;
+          // Armazena o conteúdo, mas NÃO coloca no textarea
           pendingFileContent = data.content;
-          clearFileSelection();
-          input.value = message;
-          autoResize(input);
-          updateSendButton();
-          return;
+          pendingFileName = data.filename;
+          // Remove o arquivo do input, mas mantém o pill
+          document.getElementById('fileInput').value = '';
+          currentFile = null;
+          // Se não há mensagem, a mensagem será só sobre o arquivo
+          if (!message) {
+            // Não envia automaticamente, apenas permite que o usuário clique novamente
+            updateSendButton();
+            return;
+          }
         } catch (e) {
           alert('Erro no upload: ' + e.message);
           return;
         }
       }
 
+      // Se não há mensagem mas há conteúdo de arquivo pendente, envia com mensagem padrão
+      if (!message && pendingFileContent) {
+        message = `Analise o arquivo "${pendingFileName}".`;
+      }
+
       if (!message) return;
 
       isLoading = true;
-      appendMessage('user', message);
+
+      // Monta a mensagem a ser exibida no chat
+      let displayMessage = message;
+      appendMessage('user', displayMessage);
       input.value = '';
       autoResize(input);
       updateSendButton();
+      // Não limpa o pendingFileContent aqui, pois ele será enviado no payload
 
-      if (conversations.length === 0) newChat();
+      if (activeConvIndex === -1) newChat();
       const conv = conversations[activeConvIndex];
-      conv.messages.push({ role: 'user', content: message });
+      conv.messages.push({ role: 'user', content: displayMessage });
 
       const fileContent = pendingFileContent;
       pendingFileContent = null;
+      pendingFileName = null;
+      updateFilePreview(); // Remove o pill após envio
 
       const payload = {
-        message: message,
+        message: displayMessage,
         file_content: fileContent,
         conversation_id: activeConvId,
         jailbreak: document.getElementById('jailbreakCheckbox').checked
@@ -576,9 +590,8 @@
         }
         conv.messages.push({ role: 'assistant', content: fullAnswer, thinking: fullThinking });
         conv.id = activeConvId;
-        // Atualiza título se for a primeira mensagem
         if (conv.title === 'Nova conversa' || conv.title === '(vazio)') {
-          conv.title = message.substring(0, 50) + (message.length > 50 ? '...' : '');
+          conv.title = displayMessage.substring(0, 50) + (displayMessage.length > 50 ? '...' : '');
         }
         renderHistory();
       } catch (e) {
@@ -615,7 +628,6 @@
       return row;
     }
 
-    // Inicializa
     loadConversations();
   </script>
 </body>

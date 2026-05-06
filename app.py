@@ -160,7 +160,7 @@ def ask(prompt, jailbreak=False):
 @app.route('/login')
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for('index'))
+        return redirect(url_for('index_root'))
     return render_template('login.html')
 
 @app.route('/')
