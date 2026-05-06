@@ -1,9 +1,9 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from authlib.integrations.flask_client import OAuth
 from flask_sqlalchemy import SQLAlchemy
 import opendeep as genai
-import re, sys, zipfile, base64, os
+import re, sys, zipfile, base64, os, uuid
 import requests
 from io import StringIO
 from pathlib import Path
@@ -54,11 +54,13 @@ login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 oauth = OAuth(app)
 
+# ====== MODELOS ======
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(120), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=True)  # nullable para visitantes
     name = db.Column(db.String(120), nullable=False)
-    provider = db.Column(db.String(20), nullable=False)
+    provider = db.Column(db.String(20), nullable=False, default='guest')
+    guest_id = db.Column(db.String(36), unique=True, nullable=True)
     conversations = db.relationship('Conversation', backref='user', lazy=True)
 
 class Conversation(db.Model):
@@ -83,7 +85,7 @@ with app.app_context():
 def load_user(user_id):
     return db.session.get(User, int(user_id))
 
-# Configuração do Google mantida para compatibilidade (não será usada nas novas rotas)
+# Configurações OAuth
 google = oauth.register(
     name='google',
     client_id=os.environ.get('GOOGLE_CLIENT_ID'),
@@ -102,6 +104,7 @@ github = oauth.register(
     client_kwargs={'scope': 'user:email'},
 )
 
+# ====== FUNÇÕES AUXILIARES ======
 def extract_text(file_path):
     path = Path(file_path); suffix = path.suffix.lower(); text = ""
     try:
@@ -159,6 +162,19 @@ def ask(prompt, jailbreak=False):
     thinking = clean.replace(answer, '').strip()
     return thinking, answer
 
+def get_or_create_guest():
+    """Cria ou recupera o usuário visitante baseado na sessão Flask."""
+    if 'guest_id' not in session:
+        session['guest_id'] = str(uuid.uuid4())
+    guest_id = session['guest_id']
+    user = User.query.filter_by(guest_id=guest_id, provider='guest').first()
+    if not user:
+        user = User(name='Visitante', provider='guest', guest_id=guest_id)
+        db.session.add(user)
+        db.session.commit()
+    return user
+
+# ====== ROTAS ======
 @app.route('/login')
 def login():
     if current_user.is_authenticated:
@@ -170,6 +186,13 @@ def index_root():
     if current_user.is_authenticated:
         return render_template('index.html')
     return redirect(url_for('login'))
+
+@app.route('/guest')
+def guest_login():
+    """Rota para iniciar o modo visitante."""
+    user = get_or_create_guest()
+    login_user(user)
+    return redirect(url_for('index_root'))
 
 @app.route('/chat', methods=['POST'])
 @login_required
@@ -234,7 +257,7 @@ def upload():
     os.remove(str(save_path))
     return jsonify({'filename': file.filename, 'content': extracted})
 
-# NOVAS ROTAS DO GOOGLE (Fluxo Manual com requests)
+# ====== ROTAS OAUTH ======
 @app.route('/auth/google')
 def auth_google():
     google_auth_url = 'https://accounts.google.com/o/oauth2/v2/auth'
@@ -262,44 +285,53 @@ def auth_google_callback():
     client_secret = os.environ.get('GOOGLE_CLIENT_SECRET')
     redirect_uri = 'https://deepseek-plus-chat.onrender.com/auth/google/callback'
 
-    # 1. Troca o código pelo token de acesso
-    token_url = 'https://oauth2.googleapis.com/token'
-    token_data = {
-        'code': code,
-        'client_id': client_id,
-        'client_secret': client_secret,
-        'redirect_uri': redirect_uri,
-        'grant_type': 'authorization_code'
-    }
-    token_resp = requests.post(token_url, data=token_data)
-    if token_resp.status_code != 200:
-        return f'Erro ao obter token: {token_resp.text}', 500
+    try:
+        # 1. Troca o código pelo token de acesso
+        token_url = 'https://oauth2.googleapis.com/token'
+        token_data = {
+            'code': code,
+            'client_id': client_id,
+            'client_secret': client_secret,
+            'redirect_uri': redirect_uri,
+            'grant_type': 'authorization_code'
+        }
+        print(f"Trocando código por token... client_id={client_id[:10]}... redirect_uri={redirect_uri}")
+        token_resp = requests.post(token_url, data=token_data)
+        print(f"Resposta do token: {token_resp.status_code}")
+        if token_resp.status_code != 200:
+            print(f"Erro na resposta do token: {token_resp.text}")
+            return f'Erro ao obter token: {token_resp.text}', 500
 
-    token_json = token_resp.json()
-    access_token = token_json.get('access_token')
+        token_json = token_resp.json()
+        access_token = token_json.get('access_token')
+        if not access_token:
+            return f'Token de acesso não encontrado na resposta: {token_json}', 500
 
-    # 2. Obtém informações do usuário
-    userinfo_url = 'https://www.googleapis.com/oauth2/v1/userinfo?alt=json'
-    headers = {'Authorization': f'Bearer {access_token}'}
-    userinfo_resp = requests.get(userinfo_url, headers=headers)
-    if userinfo_resp.status_code != 200:
-        return f'Erro ao obter informações do usuário: {userinfo_resp.text}', 500
+        # 2. Obtém informações do usuário
+        userinfo_url = 'https://www.googleapis.com/oauth2/v1/userinfo?alt=json'
+        headers = {'Authorization': f'Bearer {access_token}'}
+        userinfo_resp = requests.get(userinfo_url, headers=headers)
+        if userinfo_resp.status_code != 200:
+            return f'Erro ao obter informações do usuário: {userinfo_resp.text}', 500
 
-    userinfo = userinfo_resp.json()
-    email = userinfo['email']
-    name = userinfo.get('name', email.split('@')[0])
+        userinfo = userinfo_resp.json()
+        email = userinfo['email']
+        name = userinfo.get('name', email.split('@')[0])
 
-    # 3. Cria ou recupera o usuário no banco de dados
-    user = User.query.filter_by(email=email, provider='google').first()
-    if not user:
-        user = User(email=email, name=name, provider='google')
-        db.session.add(user)
-        db.session.commit()
+        # 3. Cria ou recupera o usuário no banco de dados
+        user = User.query.filter_by(email=email, provider='google').first()
+        if not user:
+            user = User(email=email, name=name, provider='google')
+            db.session.add(user)
+            db.session.commit()
 
-    login_user(user)
-    return redirect(url_for('index_root'))
+        login_user(user)
+        return redirect(url_for('index_root'))
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return f"Erro interno: {str(e)}", 500
 
-# ROTAS DO GITHUB (mantidas como estavam)
 @app.route('/auth/github')
 def auth_github():
     redirect_uri = 'https://deepseek-plus-chat.onrender.com/auth/github/callback'
@@ -324,6 +356,7 @@ def auth_github_callback():
 def logout():
     if current_user.is_authenticated:
         logout_user()
+    session.clear()
     return redirect(url_for('login'))
 
 if __name__ == '__main__':
