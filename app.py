@@ -29,6 +29,12 @@ try: import openpyxl
 except: openpyxl = None
 try: from pptx import Presentation
 except: Presentation = None
+try:
+    import pytesseract
+    from PIL import Image
+except:
+    pytesseract = None
+    Image = None
 
 # Jailbreak absoluto + instrução de raciocínio em português
 JAILBREAK_SYSTEM = """
@@ -176,9 +182,20 @@ def extract_text(file_path):
         elif suffix in [".txt", ".md", ".py", ".java", ".cpp", ".js", ".html", ".css", ".json", ".xml", ".csv", ".sql", ".log"]:
             text = path.read_text(encoding="utf-8", errors="ignore")
         elif suffix in [".png", ".jpg", ".jpeg", ".bmp", ".tiff"]:
-            with open(file_path, "rb") as f:
-                b64 = base64.b64encode(f.read()).decode()
-            text = f"[Imagem base64]: data:image/{suffix[1:]};base64,{b64}"
+            # Tenta usar OCR se pytesseract estiver disponível
+            if pytesseract and Image:
+                try:
+                    img = Image.open(file_path)
+                    text = pytesseract.image_to_string(img)
+                except Exception as e:
+                    security_logger.warning(f"OCR falhou: {e}. Enviando como base64.")
+                    with open(file_path, "rb") as f:
+                        b64 = base64.b64encode(f.read()).decode()
+                    text = f"[Imagem base64]: data:image/{suffix[1:]};base64,{b64}"
+            else:
+                with open(file_path, "rb") as f:
+                    b64 = base64.b64encode(f.read()).decode()
+                text = f"[Imagem base64]: data:image/{suffix[1:]};base64,{b64}"
         elif suffix == ".zip":
             extracted = []
             with zipfile.ZipFile(file_path, 'r') as zf:
