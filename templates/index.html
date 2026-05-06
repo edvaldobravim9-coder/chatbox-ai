@@ -34,7 +34,7 @@
 
     /* ====== SIDEBAR ====== */
     .sidebar {
-      width: 260px;
+      width: 280px;
       background: var(--sidebar-bg);
       display: flex;
       flex-direction: column;
@@ -45,12 +45,20 @@
       z-index: 20;
     }
 
-    .sidebar.hidden {
-      transform: translateX(-100%);
-      position: absolute;
-      height: 100dvh;
-      top: 0;
+    /* Mobile: sidebar vira drawer */
+    .sidebar.mobile {
+      position: fixed;
       left: 0;
+      top: 0;
+      height: 100dvh;
+      width: 85%;
+      max-width: 320px;
+      transform: translateX(-100%);
+      box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+    }
+
+    .sidebar.mobile.open {
+      transform: translateX(0);
     }
 
     .sidebar .user-info {
@@ -65,26 +73,38 @@
     }
 
     .sidebar .user-info .avatar-circle {
-      width: 32px;
-      height: 32px;
+      width: 36px;
+      height: 36px;
       border-radius: 50%;
       background: var(--brand-blue);
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: 700;
-      font-size: 14px;
+      font-size: 16px;
       color: white;
       flex-shrink: 0;
     }
 
-    .sidebar .user-info .user-name {
-      font-size: 14px;
-      font-weight: 500;
+    .sidebar .user-info .user-details {
       flex: 1;
       overflow: hidden;
-      text-overflow: ellipsis;
+    }
+
+    .sidebar .user-info .user-name {
+      font-size: 14px;
+      font-weight: 600;
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sidebar .user-info .user-email {
+      font-size: 11px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .sidebar .user-info .logout-btn {
@@ -396,24 +416,13 @@
     .overlay.show { display: block; }
 
     /* ====== RESPONSIVE (Mobile) ====== */
-    @media (max-width: 768px) {
-      .sidebar {
-        position: absolute;
-        height: 100dvh;
-        left: 0;
-        top: 0;
+    @media (max-width: 1024px) {
+      .sidebar.desktop {
+        display: none;
       }
 
-      .sidebar.hidden {
-        transform: translateX(-100%);
-      }
-
-      .sidebar:not(.hidden) {
-        transform: translateX(0);
-      }
-
-      .main {
-        width: 100%;
+      .sidebar.mobile {
+        display: flex;
       }
 
       .chat-header {
@@ -433,18 +442,41 @@
 <body>
   <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
 
-  <div class="sidebar hidden" id="sidebar">
+  <!-- Sidebar mobile (drawer) -->
+  <div class="sidebar mobile" id="sidebarMobile">
     <div class="user-info">
       <div class="avatar-circle">{{ current_user.name[0].upper() }}</div>
-      <span class="user-name">{{ current_user.name }}</span>
+      <div class="user-details">
+        <div class="user-name">{{ current_user.name }}</div>
+        <div class="user-email">{{ current_user.email or 'Visitante' }}</div>
+      </div>
       <a href="/logout" class="logout-btn" title="Sair">⏻</a>
     </div>
     <button class="new-chat" onclick="newChat(); closeSidebar()">+ Novo chat</button>
-    <div class="history" id="history"></div>
+    <div class="history" id="historyMobile"></div>
     <div class="footer">
       <span>🔓 Modo Dev</span>
-      <input type="checkbox" id="jailbreakCheckbox" style="margin-left: auto; accent-color: #ff6b6b;">
-      <span class="platform-badge" id="platformBadge"></span>
+      <input type="checkbox" id="jailbreakCheckboxMobile" style="margin-left: auto; accent-color: #ff6b6b;">
+      <span class="platform-badge" id="platformBadgeMobile"></span>
+    </div>
+  </div>
+
+  <!-- Sidebar desktop (sempre visível) -->
+  <div class="sidebar desktop" id="sidebarDesktop">
+    <div class="user-info">
+      <div class="avatar-circle">{{ current_user.name[0].upper() }}</div>
+      <div class="user-details">
+        <div class="user-name">{{ current_user.name }}</div>
+        <div class="user-email">{{ current_user.email or 'Visitante' }}</div>
+      </div>
+      <a href="/logout" class="logout-btn" title="Sair">⏻</a>
+    </div>
+    <button class="new-chat" onclick="newChat()">+ Novo chat</button>
+    <div class="history" id="historyDesktop"></div>
+    <div class="footer">
+      <span>🔓 Modo Dev</span>
+      <input type="checkbox" id="jailbreakCheckboxDesktop" style="margin-left: auto; accent-color: #ff6b6b;">
+      <span class="platform-badge" id="platformBadgeDesktop"></span>
     </div>
   </div>
 
@@ -494,33 +526,45 @@
       }
 
       const badge = icon + ' ' + platform;
-      const sidebarBadge = document.getElementById('platformBadge');
-      const headerBadge = document.getElementById('platformBadgeHeader');
-      if (sidebarBadge) sidebarBadge.textContent = badge;
-      if (headerBadge) headerBadge.textContent = badge;
+      const elements = ['platformBadgeMobile', 'platformBadgeDesktop', 'platformBadgeHeader'];
+      elements.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = badge;
+      });
     }
 
+    // Lógica da sidebar
+    let isMobile = window.innerWidth <= 1024;
+
     function openSidebar() {
-      document.getElementById('sidebar').classList.remove('hidden');
+      document.getElementById('sidebarMobile').classList.add('open');
       document.getElementById('overlay').classList.add('show');
       document.body.style.overflow = 'hidden';
     }
 
     function closeSidebar() {
-      document.getElementById('sidebar').classList.add('hidden');
+      document.getElementById('sidebarMobile').classList.remove('open');
       document.getElementById('overlay').classList.remove('show');
       document.body.style.overflow = '';
     }
 
-    // Para desktop, sidebar sempre visível
-    function initLayout() {
-      if (window.innerWidth > 768) {
-        document.getElementById('sidebar').classList.remove('hidden');
-        document.body.style.overflow = '';
-      }
+    // Mantém as duas sidebars sincronizadas (histórico e checkbox)
+    function getActiveHistoryEl() {
+      return isMobile ? document.getElementById('historyMobile') : document.getElementById('historyDesktop');
     }
 
-    window.addEventListener('resize', initLayout);
+    function getActiveJailbreakCheckbox() {
+      return isMobile ? document.getElementById('jailbreakCheckboxMobile') : document.getElementById('jailbreakCheckboxDesktop');
+    }
+
+    // Sincroniza os checkboxes
+    document.addEventListener('change', function(e) {
+      if (e.target.id === 'jailbreakCheckboxMobile') {
+        document.getElementById('jailbreakCheckboxDesktop').checked = e.target.checked;
+      } else if (e.target.id === 'jailbreakCheckboxDesktop') {
+        document.getElementById('jailbreakCheckboxMobile').checked = e.target.checked;
+      }
+    });
 
     const CHAT_URL = '/chat';
     const UPLOAD_URL = '/upload';
@@ -581,7 +625,7 @@
       renderHistory();
       document.getElementById('chatContainer').innerHTML = '';
       clearFileSelection();
-      closeSidebar();
+      if (isMobile) closeSidebar();
     }
 
     async function switchChat(index) {
@@ -597,18 +641,22 @@
         }
       });
       container.scrollTop = container.scrollHeight;
-      closeSidebar();
+      if (isMobile) closeSidebar();
     }
 
     function renderHistory() {
-      const hist = document.getElementById('history');
-      hist.innerHTML = '';
-      conversations.forEach((conv, idx) => {
-        const div = document.createElement('div');
-        div.className = 'chat-item' + (idx === activeConvIndex ? ' active' : '');
-        div.textContent = conv.title;
-        div.onclick = () => switchChat(idx);
-        hist.appendChild(div);
+      const historyEl = isMobile ? document.getElementById('historyMobile') : document.getElementById('historyDesktop');
+      // Atualiza ambos
+      [document.getElementById('historyMobile'), document.getElementById('historyDesktop')].forEach(hist => {
+        if (!hist) return;
+        hist.innerHTML = '';
+        conversations.forEach((conv, idx) => {
+          const div = document.createElement('div');
+          div.className = 'chat-item' + (idx === activeConvIndex ? ' active' : '');
+          div.textContent = conv.title;
+          div.onclick = () => switchChat(idx);
+          hist.appendChild(div);
+        });
       });
     }
 
@@ -700,11 +748,13 @@
       pendingFileName = null;
       updateFilePreview();
 
+      const jailbreakCheckbox = isMobile ? document.getElementById('jailbreakCheckboxMobile') : document.getElementById('jailbreakCheckboxDesktop');
+
       const payload = {
         message: displayMessage,
         file_content: fileContent,
         conversation_id: activeConvId,
-        jailbreak: document.getElementById('jailbreakCheckbox').checked
+        jailbreak: jailbreakCheckbox ? jailbreakCheckbox.checked : false
       };
 
       const assistantRow = appendMessage('assistant', '', '', true);
@@ -777,9 +827,18 @@
       return row;
     }
 
+    // Atualiza o layout ao redimensionar
+    window.addEventListener('resize', () => {
+      const wasMobile = isMobile;
+      isMobile = window.innerWidth <= 1024;
+      if (wasMobile !== isMobile) {
+        renderHistory(); // re-renderiza no histórico correto
+      }
+    });
+
     // Inicialização
     detectPlatform();
-    initLayout();
+    renderHistory();
     loadConversations();
   </script>
 </body>

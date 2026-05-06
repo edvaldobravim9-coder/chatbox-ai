@@ -55,17 +55,36 @@
     }
     .oauth-btn:hover { background: rgba(60, 60, 120, 0.8); }
     .oauth-btn img { width: 20px; height: 20px; }
+    .separator {
+      display: flex;
+      align-items: center;
+      margin: 20px 0;
+      color: #6666a0;
+    }
+    .separator::before, .separator::after {
+      content: '';
+      flex: 1;
+      border-bottom: 1px solid #3a3a6e;
+    }
+    .separator span {
+      padding: 0 10px;
+      font-size: 12px;
+    }
   </style>
 </head>
 <body>
   <div class="login-card">
     <h1>💬 Chatbox</h1>
-    <p>Faça login para continuar</p>
+    <p>Escolha como deseja continuar</p>
     <a href="/auth/google" class="oauth-btn">
       <img src="https://www.google.com/favicon.ico" alt="Google"> Entrar com Google
     </a>
     <a href="/auth/github" class="oauth-btn">
       <img src="https://github.githubassets.com/favicons/favicon-dark.svg" alt="GitHub"> Entrar com GitHub
+    </a>
+    <div class="separator"><span>ou</span></div>
+    <a href="/guest" class="oauth-btn" style="border-color: #4ddfb4; color: #4ddfb4;">
+      👤 Continuar como Visitante
     </a>
   </div>
 </body>

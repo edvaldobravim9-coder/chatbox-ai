@@ -262,7 +262,7 @@ def upload():
 def auth_google():
     google_auth_url = 'https://accounts.google.com/o/oauth2/v2/auth'
     client_id = os.environ.get('GOOGLE_CLIENT_ID')
-    redirect_uri = 'https://deepseek-plus-chat.onrender.com/auth/google/callback'
+    redirect_uri = 'https://chatbox-ai.onrender.com/auth/google/callback'
     scope = 'openid email profile'
     params = {
         'client_id': client_id,
@@ -283,7 +283,7 @@ def auth_google_callback():
 
     client_id = os.environ.get('GOOGLE_CLIENT_ID')
     client_secret = os.environ.get('GOOGLE_CLIENT_SECRET')
-    redirect_uri = 'https://deepseek-plus-chat.onrender.com/auth/google/callback'
+    redirect_uri = 'https://chatbox-ai.onrender.com/auth/google/callback'
 
     try:
         # 1. Troca o código pelo token de acesso
@@ -334,7 +334,7 @@ def auth_google_callback():
 
 @app.route('/auth/github')
 def auth_github():
-    redirect_uri = 'https://deepseek-plus-chat.onrender.com/auth/github/callback'
+    redirect_uri = 'https://chatbox-ai.onrender.com/auth/google/callback'
     return github.authorize_redirect(redirect_uri)
 
 @app.route('/auth/github/callback')
