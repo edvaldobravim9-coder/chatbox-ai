@@ -239,12 +239,7 @@ def auth_google():
     redirect_uri = 'https://deepseek-plus-chat.onrender.com/auth/google/callback'
     return google.authorize_redirect(redirect_uri)
 
-@app.route('/auth/github')
-def auth_github():
-    redirect_uri = 'https://deepseek-plus-chat.onrender.com/auth/github/callback'
-    return github.authorize_redirect(redirect_uri)
-@app.route('/auth/github/callback')
-
+# ========== ROTA DO GOOGLE CORRIGIDA ==========
 @app.route('/auth/google/callback')
 def auth_google_callback():
     token = google.authorize_access_token()
@@ -259,6 +254,12 @@ def auth_google_callback():
     login_user(user)
     return redirect(url_for('index_root'))
 
+@app.route('/auth/github')
+def auth_github():
+    redirect_uri = 'https://deepseek-plus-chat.onrender.com/auth/github/callback'
+    return github.authorize_redirect(redirect_uri)
+
+@app.route('/auth/github/callback')
 def auth_github_callback():
     token = github.authorize_access_token()
     resp = github.get('user', token=token)
