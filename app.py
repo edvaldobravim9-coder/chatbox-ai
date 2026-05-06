@@ -4,6 +4,7 @@ from authlib.integrations.flask_client import OAuth
 from flask_sqlalchemy import SQLAlchemy
 import opendeep as genai
 import re, sys, zipfile, base64, os
+import requests
 from io import StringIO
 from pathlib import Path
 from datetime import datetime
@@ -82,6 +83,7 @@ with app.app_context():
 def load_user(user_id):
     return db.session.get(User, int(user_id))
 
+# Configuração do Google mantida para compatibilidade (não será usada nas novas rotas)
 google = oauth.register(
     name='google',
     client_id=os.environ.get('GOOGLE_CLIENT_ID'),
@@ -232,26 +234,72 @@ def upload():
     os.remove(str(save_path))
     return jsonify({'filename': file.filename, 'content': extracted})
 
+# NOVAS ROTAS DO GOOGLE (Fluxo Manual com requests)
 @app.route('/auth/google')
 def auth_google():
+    google_auth_url = 'https://accounts.google.com/o/oauth2/v2/auth'
+    client_id = os.environ.get('GOOGLE_CLIENT_ID')
     redirect_uri = 'https://deepseek-plus-chat.onrender.com/auth/google/callback'
-    return google.authorize_redirect(redirect_uri)
+    scope = 'openid email profile'
+    params = {
+        'client_id': client_id,
+        'redirect_uri': redirect_uri,
+        'response_type': 'code',
+        'scope': scope,
+        'access_type': 'offline',
+        'prompt': 'consent'
+    }
+    url = google_auth_url + '?' + '&'.join([f'{k}={v}' for k, v in params.items()])
+    return redirect(url)
 
-# ========== ROTA DO GOOGLE CORRIGIDA ==========
 @app.route('/auth/google/callback')
 def auth_google_callback():
-    token = google.authorize_access_token()
-    user_info = google.get('userinfo').json()
-    email = user_info['email']
-    name = user_info.get('name', email.split('@')[0])
+    code = request.args.get('code')
+    if not code:
+        return 'Código de autorização não encontrado.', 400
+
+    client_id = os.environ.get('GOOGLE_CLIENT_ID')
+    client_secret = os.environ.get('GOOGLE_CLIENT_SECRET')
+    redirect_uri = 'https://deepseek-plus-chat.onrender.com/auth/google/callback'
+
+    # 1. Troca o código pelo token de acesso
+    token_url = 'https://oauth2.googleapis.com/token'
+    token_data = {
+        'code': code,
+        'client_id': client_id,
+        'client_secret': client_secret,
+        'redirect_uri': redirect_uri,
+        'grant_type': 'authorization_code'
+    }
+    token_resp = requests.post(token_url, data=token_data)
+    if token_resp.status_code != 200:
+        return f'Erro ao obter token: {token_resp.text}', 500
+
+    token_json = token_resp.json()
+    access_token = token_json.get('access_token')
+
+    # 2. Obtém informações do usuário
+    userinfo_url = 'https://www.googleapis.com/oauth2/v1/userinfo?alt=json'
+    headers = {'Authorization': f'Bearer {access_token}'}
+    userinfo_resp = requests.get(userinfo_url, headers=headers)
+    if userinfo_resp.status_code != 200:
+        return f'Erro ao obter informações do usuário: {userinfo_resp.text}', 500
+
+    userinfo = userinfo_resp.json()
+    email = userinfo['email']
+    name = userinfo.get('name', email.split('@')[0])
+
+    # 3. Cria ou recupera o usuário no banco de dados
     user = User.query.filter_by(email=email, provider='google').first()
     if not user:
         user = User(email=email, name=name, provider='google')
         db.session.add(user)
         db.session.commit()
+
     login_user(user)
     return redirect(url_for('index_root'))
 
+# ROTAS DO GITHUB (mantidas como estavam)
 @app.route('/auth/github')
 def auth_github():
     redirect_uri = 'https://deepseek-plus-chat.onrender.com/auth/github/callback'

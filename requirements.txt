@@ -9,3 +9,4 @@ openpyxl
 python-pptx
 Pillow
 pytesseract
+requests
