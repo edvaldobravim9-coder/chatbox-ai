@@ -237,6 +237,11 @@ def get_or_create_guest():
         db.session.commit()
     return user
 
+def get_base_url():
+    host = request.headers.get('X-Forwarded-Host', request.host)
+    scheme = request.headers.get('X-Forwarded-Proto', 'https')
+    return f"{scheme}://{host}"
+
 # ====== ROTAS ======
 @app.route('/login')
 @limiter.exempt
@@ -429,7 +434,7 @@ def internal_error(e):
 @app.route('/auth/google')
 @limiter.limit("10 per minute")
 def auth_google():
-    redirect_uri = 'https://chatbox-ai-2kn8.onrender.com/auth/google/callback'
+    redirect_uri = f'{get_base_url()}/auth/google/callback'
     params = {
         'client_id': os.environ.get('GOOGLE_CLIENT_ID'),
         'redirect_uri': redirect_uri,
@@ -448,7 +453,7 @@ def auth_google_callback():
     if not code: return 'Código de autorização não encontrado.', 400
     client_id = os.environ.get('GOOGLE_CLIENT_ID')
     client_secret = os.environ.get('GOOGLE_CLIENT_SECRET')
-    redirect_uri = 'https://chatbox-ai-2kn8.onrender.com/auth/google/callback'
+    redirect_uri = f'{get_base_url()}/auth/google/callback'
     try:
         token_resp = requests.post('https://oauth2.googleapis.com/token', data={
             'code': code, 'client_id': client_id, 'client_secret': client_secret,
@@ -477,7 +482,75 @@ def auth_google_callback():
 @app.route('/auth/github')
 @limiter.limit("10 per minute")
 def auth_github():
-    return github.authorize_redirect('https://chatbox-ai-2kn8.onrender.com/auth/github/callback')
+    redirect_uri = f'{get_base_url()}/auth/github/callback'
+    return github.authorize_redirect(redirect_uri)
+
+@app.route('/auth/github/callback')
+@limiter.limit("10 per minute")
+def auth_github_callback():
+    token = github.authorize_access_token()
+    resp = github.get('user', token=token)
+    user_info = resp.json()
+    email = user_info.get('email') or f"{user_info['login']}@github.com"
+    name = user_info.get('name') or user_info['login']
+    user = User.query.filter_by(email=email, provider='github').first()
+    if not user:
+        user = User(email=email, name=name, provider='github')
+        db.session.add(user); db.session.commit()
+    login_user(user)
+    return redirect(url_for('index_root'))@app.route('/auth/google')
+@limiter.limit("10 per minute")
+def auth_google():
+    redirect_uri = f'{get_base_url()}/auth/google/callback'
+    params = {
+        'client_id': os.environ.get('GOOGLE_CLIENT_ID'),
+        'redirect_uri': redirect_uri,
+        'response_type': 'code',
+        'scope': 'openid email profile',
+        'access_type': 'offline',
+        'prompt': 'consent'
+    }
+    url = 'https://accounts.google.com/o/oauth2/v2/auth?' + '&'.join([f'{k}={v}' for k, v in params.items()])
+    return redirect(url)
+
+@app.route('/auth/google/callback')
+@limiter.limit("10 per minute")
+def auth_google_callback():
+    code = request.args.get('code')
+    if not code: return 'Código de autorização não encontrado.', 400
+    client_id = os.environ.get('GOOGLE_CLIENT_ID')
+    client_secret = os.environ.get('GOOGLE_CLIENT_SECRET')
+    redirect_uri = f'{get_base_url()}/auth/google/callback'
+    try:
+        token_resp = requests.post('https://oauth2.googleapis.com/token', data={
+            'code': code, 'client_id': client_id, 'client_secret': client_secret,
+            'redirect_uri': redirect_uri, 'grant_type': 'authorization_code'
+        }, timeout=15)
+        if token_resp.status_code != 200: return f'Erro ao obter token: {token_resp.text}', 500
+        token_json = token_resp.json()
+        access_token = token_json.get('access_token')
+        if not access_token: return f'Token de acesso não encontrado: {token_json}', 500
+        userinfo_resp = requests.get('https://www.googleapis.com/oauth2/v1/userinfo?alt=json',
+                                     headers={'Authorization': f'Bearer {access_token}'}, timeout=15)
+        if userinfo_resp.status_code != 200: return f'Erro ao obter informações do usuário: {userinfo_resp.text}', 500
+        userinfo = userinfo_resp.json()
+        email = userinfo['email']
+        name = userinfo.get('name', email.split('@')[0])
+        user = User.query.filter_by(email=email, provider='google').first()
+        if not user:
+            user = User(email=email, name=name, provider='google')
+            db.session.add(user); db.session.commit()
+        login_user(user)
+        return redirect(url_for('index_root'))
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return f"Erro interno: {str(e)}", 500
+
+@app.route('/auth/github')
+@limiter.limit("10 per minute")
+def auth_github():
+    redirect_uri = f'{get_base_url()}/auth/github/callback'
+    return github.authorize_redirect(redirect_uri)
 
 @app.route('/auth/github/callback')
 @limiter.limit("10 per minute")
