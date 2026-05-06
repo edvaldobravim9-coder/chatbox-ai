@@ -45,7 +45,6 @@
       z-index: 20;
     }
 
-    /* Mobile: sidebar vira drawer */
     .sidebar.mobile {
       position: fixed;
       left: 0;
@@ -57,9 +56,7 @@
       box-shadow: 2px 0 10px rgba(0,0,0,0.5);
     }
 
-    .sidebar.mobile.open {
-      transform: translateX(0);
-    }
+    .sidebar.mobile.open { transform: translateX(0); }
 
     .sidebar .user-info {
       display: flex;
@@ -86,38 +83,10 @@
       flex-shrink: 0;
     }
 
-    .sidebar .user-info .user-details {
-      flex: 1;
-      overflow: hidden;
-    }
-
-    .sidebar .user-info .user-name {
-      font-size: 14px;
-      font-weight: 600;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .sidebar .user-info .user-email {
-      font-size: 11px;
-      color: var(--text-secondary);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .sidebar .user-info .logout-btn {
-      color: var(--text-secondary);
-      text-decoration: none;
-      font-size: 12px;
-      cursor: pointer;
-      background: none;
-      border: none;
-      padding: 4px 8px;
-      border-radius: 4px;
-    }
-
+    .sidebar .user-info .user-details { flex: 1; overflow: hidden; }
+    .sidebar .user-info .user-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sidebar .user-info .user-email { font-size: 11px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sidebar .user-info .logout-btn { color: var(--text-secondary); text-decoration: none; font-size: 12px; cursor: pointer; background: none; border: none; padding: 4px 8px; border-radius: 4px; }
     .sidebar .user-info .logout-btn:hover { background: rgba(255,255,255,0.08); }
 
     .sidebar button.new-chat {
@@ -137,312 +106,86 @@
       margin-bottom: 16px;
       width: 100%;
     }
-
     .sidebar button.new-chat:hover { background: #5b8aff; }
 
-    .sidebar .history {
-      flex: 1;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .sidebar .chat-item {
-      padding: 10px 12px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 13px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      color: var(--text-secondary);
-      transition: background 0.1s;
-    }
-
+    .sidebar .history { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+    .sidebar .chat-item { padding: 10px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-secondary); transition: background 0.1s; }
     .sidebar .chat-item:hover { background: rgba(255,255,255,0.06); }
     .sidebar .chat-item.active { background: rgba(79,125,255,0.15); color: var(--text-primary); }
 
-    .sidebar .footer {
-      padding: 12px 8px 0;
-      border-top: 1px solid var(--border-color);
-      margin-top: auto;
-      font-size: 12px;
-      color: var(--text-secondary);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
+    .sidebar .footer { padding: 12px 8px 0; border-top: 1px solid var(--border-color); margin-top: auto; font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
-    .platform-badge {
-      background: rgba(79, 125, 255, 0.15);
-      padding: 2px 8px;
-      border-radius: 12px;
-      font-size: 10px;
-      color: var(--brand-blue);
-      border: 1px solid rgba(79, 125, 255, 0.3);
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
+    .platform-badge { background: rgba(79, 125, 255, 0.15); padding: 2px 8px; border-radius: 12px; font-size: 10px; color: var(--brand-blue); border: 1px solid rgba(79, 125, 255, 0.3); display: inline-flex; align-items: center; gap: 4px; }
 
     /* ====== MAIN ====== */
-    .main {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      min-width: 0;
-      position: relative;
-    }
+    .main { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
+    .chat-header { display: none; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border-color); background: var(--sidebar-bg); gap: 12px; }
+    .menu-btn { background: none; border: none; color: var(--text-primary); font-size: 24px; cursor: pointer; padding: 4px; line-height: 1; }
 
-    .chat-header {
-      display: none;
-      align-items: center;
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--border-color);
-      background: var(--sidebar-bg);
-      gap: 12px;
-    }
+    .chat-container { flex: 1; overflow-y: auto; scroll-behavior: smooth; }
 
-    .menu-btn {
-      background: none;
-      border: none;
-      color: var(--text-primary);
-      font-size: 24px;
-      cursor: pointer;
-      padding: 4px;
-      line-height: 1;
-    }
-
-    .chat-container {
-      flex: 1;
-      overflow-y: auto;
-      scroll-behavior: smooth;
-    }
-
-    .message-row {
-      display: flex;
-      padding: 16px 5%;
-      gap: 12px;
-      border-bottom: 1px solid rgba(255,255,255,0.02);
-      animation: fadeIn 0.2s ease;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
+    .message-row { display: flex; padding: 16px 5%; gap: 12px; border-bottom: 1px solid rgba(255,255,255,0.02); animation: fadeIn 0.2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 
     .message-row.user { background: var(--bg-message-user); }
     .message-row.assistant { background: var(--bg-message-assistant); }
 
-    .avatar {
-      width: 28px;
-      height: 28px;
-      border-radius: 4px;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-size: 12px;
-      flex-shrink: 0;
-    }
-
+    .avatar { width: 28px; height: 28px; border-radius: 4px; font-weight: 700; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; flex-shrink: 0; }
     .user .avatar { background: var(--brand-blue); }
     .assistant .avatar { background: var(--brand-green); }
 
-    .message-content {
-      line-height: 1.6;
-      flex: 1;
-      font-size: 14px;
-      word-break: break-word;
-    }
-
+    .message-content { line-height: 1.6; flex: 1; font-size: 14px; word-break: break-word; }
     .message-content strong { color: #ffffff; font-weight: 700; }
     .message-content em { color: #d0d0f0; font-style: italic; }
-    .message-content code {
-      background: rgba(0,0,0,0.3);
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-family: 'Fira Code', monospace;
-      font-size: 12px;
-      color: #f0c050;
-    }
-    .message-content blockquote {
-      border-left: 3px solid var(--brand-green);
-      padding-left: 12px;
-      margin: 8px 0;
-      color: #aaaacc;
-      font-style: italic;
-    }
+    .message-content code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-family: 'Fira Code', monospace; font-size: 12px; color: #f0c050; }
+    .message-content blockquote { border-left: 3px solid var(--brand-green); padding-left: 12px; margin: 8px 0; color: #aaaacc; font-style: italic; }
     .message-content ul, .message-content ol { padding-left: 20px; margin: 6px 0; }
     .message-content li { margin: 3px 0; }
     .message-content hr { border: none; border-top: 1px solid var(--border-color); margin: 12px 0; }
 
-    .thinking-block {
-      background: rgba(0,0,0,0.2);
-      border-left: 3px solid var(--brand-green);
-      padding: 10px 14px;
-      margin: 10px 0;
-      border-radius: 6px;
-      font-size: 12px;
-      color: #aaaacc;
-    }
+    .thinking-block { background: rgba(0,0,0,0.2); border-left: 3px solid var(--brand-green); padding: 10px 14px; margin: 10px 0; border-radius: 6px; font-size: 12px; color: #aaaacc; }
+    .thinking-block summary { color: var(--brand-green); font-weight: 600; cursor: pointer; user-select: none; }
+    .thinking-block pre { white-space: pre-wrap; font-family: inherit; margin-top: 6px; }
 
-    .thinking-block summary {
-      color: var(--brand-green);
-      font-weight: 600;
-      cursor: pointer;
-      user-select: none;
-    }
-
-    .thinking-block pre {
-      white-space: pre-wrap;
-      font-family: inherit;
-      margin-top: 6px;
-    }
-
-    .input-area {
-      padding: 8px 5% 16px;
-      background: linear-gradient(180deg, transparent 0%, #0b0b1e 20%);
-    }
-
-    .input-wrapper {
-      display: flex;
-      align-items: flex-end;
-      background: var(--bg-message-assistant);
-      border-radius: 16px;
-      border: 1px solid var(--border-color);
-      padding: 6px 10px;
-      box-shadow: 0 0 15px rgba(79,125,255,0.05);
-      transition: border-color 0.2s;
-    }
-
-    .input-wrapper:focus-within {
-      border-color: var(--brand-blue);
-    }
-
-    .input-wrapper textarea {
-      flex: 1;
-      background: transparent;
-      border: none;
-      color: var(--text-primary);
-      resize: none;
-      font-size: 14px;
-      padding: 6px 0;
-      outline: none;
-      font-family: inherit;
-      line-height: 1.5;
-      max-height: 120px;
-    }
-
+    .input-area { padding: 8px 5% 16px; background: linear-gradient(180deg, transparent 0%, #0b0b1e 20%); }
+    .input-wrapper { display: flex; align-items: flex-end; background: var(--bg-message-assistant); border-radius: 16px; border: 1px solid var(--border-color); padding: 6px 10px; box-shadow: 0 0 15px rgba(79,125,255,0.05); transition: border-color 0.2s; }
+    .input-wrapper:focus-within { border-color: var(--brand-blue); }
+    .input-wrapper textarea { flex: 1; background: transparent; border: none; color: var(--text-primary); resize: none; font-size: 14px; padding: 6px 0; outline: none; font-family: inherit; line-height: 1.5; max-height: 120px; }
     .input-wrapper textarea::placeholder { color: #6666a0; font-style: italic; }
     .input-wrapper input[type="file"] { display: none; }
 
-    .btn {
-      background: transparent;
-      border: none;
-      color: #7777aa;
-      cursor: pointer;
-      padding: 4px;
-      font-size: 16px;
-      display: flex;
-      align-items: center;
-      transition: color 0.15s;
-    }
-
+    .btn { background: transparent; border: none; color: #7777aa; cursor: pointer; padding: 4px; font-size: 16px; display: flex; align-items: center; transition: color 0.15s; }
     .btn:hover { color: var(--text-primary); }
-
-    .btn.send {
-      color: var(--brand-blue);
-      font-size: 18px;
-      padding: 2px;
-      opacity: 0.6;
-      transition: opacity 0.15s;
-    }
-
+    .btn.send { color: var(--brand-blue); font-size: 18px; padding: 2px; opacity: 0.6; transition: opacity 0.15s; }
     .btn.send.enabled { opacity: 1; }
-
-    .file-pill {
-      background: rgba(0,0,0,0.3);
-      padding: 4px 10px;
-      border-radius: 12px;
-      margin-right: 6px;
-      font-size: 11px;
-      white-space: nowrap;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
+    .file-pill { background: rgba(0,0,0,0.3); padding: 4px 10px; border-radius: 12px; margin-right: 6px; font-size: 11px; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
 
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #3a3a6a; border-radius: 2px; }
 
-    .typing-dots {
-      display: inline-flex;
-      gap: 4px;
-      padding: 4px 0;
-    }
-
-    .typing-dots span {
-      width: 6px;
-      height: 6px;
-      background: var(--text-secondary);
-      border-radius: 50%;
-      animation: bounce 1.4s infinite ease-in-out both;
-    }
-
+    .typing-dots { display: inline-flex; gap: 4px; padding: 4px 0; }
+    .typing-dots span { width: 6px; height: 6px; background: var(--text-secondary); border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
     .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
     .typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
 
-    @keyframes bounce {
-      0%, 80%, 100% { transform: scale(0); }
-      40% { transform: scale(1); }
-    }
-
-    /* Overlay para celular ao abrir sidebar */
-    .overlay {
-      display: none;
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0,0.6);
-      z-index: 15;
-    }
-
+    .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 15; }
     .overlay.show { display: block; }
 
-    /* ====== RESPONSIVE (Mobile) ====== */
     @media (max-width: 1024px) {
-      .sidebar.desktop {
-        display: none;
-      }
-
-      .sidebar.mobile {
-        display: flex;
-      }
-
-      .chat-header {
-        display: flex;
-      }
-
-      .message-row {
-        padding: 12px 3%;
-      }
-
-      .input-area {
-        padding: 8px 3% 16px;
-      }
+      .sidebar.desktop { display: none; }
+      .sidebar.mobile { display: flex; }
+      .chat-header { display: flex; }
+      .message-row { padding: 12px 3%; }
+      .input-area { padding: 8px 3% 16px; }
     }
   </style>
 </head>
 <body>
   <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
 
-  <!-- Sidebar mobile (drawer) -->
+  <!-- Sidebar mobile -->
   <div class="sidebar mobile" id="sidebarMobile">
     <div class="user-info">
       <div class="avatar-circle">{{ current_user.name[0].upper() }}</div>
@@ -461,7 +204,7 @@
     </div>
   </div>
 
-  <!-- Sidebar desktop (sempre visível) -->
+  <!-- Sidebar desktop -->
   <div class="sidebar desktop" id="sidebarDesktop">
     <div class="user-info">
       <div class="avatar-circle">{{ current_user.name[0].upper() }}</div>
@@ -500,72 +243,6 @@
   </div>
 
   <script>
-    // Detecta plataforma/dispositivo
-    function detectPlatform() {
-      const ua = navigator.userAgent;
-      let platform = 'PC';
-      let icon = '🖥️';
-
-      if (/Mobi|Android|iPhone|iPad|iPod/i.test(ua)) {
-        if (/Android/i.test(ua)) {
-          platform = 'Android';
-          icon = '📱';
-        } else if (/iPhone|iPad|iPod/i.test(ua)) {
-          platform = 'iOS';
-          icon = '🍎';
-        }
-      } else if (/Windows/i.test(ua)) {
-        platform = 'Windows';
-        icon = '🪟';
-      } else if (/Macintosh|Mac OS X/i.test(ua)) {
-        platform = 'macOS';
-        icon = '🍏';
-      } else if (/Linux/i.test(ua)) {
-        platform = 'Linux';
-        icon = '🐧';
-      }
-
-      const badge = icon + ' ' + platform;
-      const elements = ['platformBadgeMobile', 'platformBadgeDesktop', 'platformBadgeHeader'];
-      elements.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = badge;
-      });
-    }
-
-    // Lógica da sidebar
-    let isMobile = window.innerWidth <= 1024;
-
-    function openSidebar() {
-      document.getElementById('sidebarMobile').classList.add('open');
-      document.getElementById('overlay').classList.add('show');
-      document.body.style.overflow = 'hidden';
-    }
-
-    function closeSidebar() {
-      document.getElementById('sidebarMobile').classList.remove('open');
-      document.getElementById('overlay').classList.remove('show');
-      document.body.style.overflow = '';
-    }
-
-    // Mantém as duas sidebars sincronizadas (histórico e checkbox)
-    function getActiveHistoryEl() {
-      return isMobile ? document.getElementById('historyMobile') : document.getElementById('historyDesktop');
-    }
-
-    function getActiveJailbreakCheckbox() {
-      return isMobile ? document.getElementById('jailbreakCheckboxMobile') : document.getElementById('jailbreakCheckboxDesktop');
-    }
-
-    // Sincroniza os checkboxes
-    document.addEventListener('change', function(e) {
-      if (e.target.id === 'jailbreakCheckboxMobile') {
-        document.getElementById('jailbreakCheckboxDesktop').checked = e.target.checked;
-      } else if (e.target.id === 'jailbreakCheckboxDesktop') {
-        document.getElementById('jailbreakCheckboxMobile').checked = e.target.checked;
-      }
-    });
-
     const CHAT_URL = '/chat';
     const UPLOAD_URL = '/upload';
     const CONVERSATIONS_URL = '/conversations';
@@ -575,8 +252,42 @@
     let activeConvId = null;
     let currentFile = null;
     let pendingFileContent = null;
-    let pendingFileName = null;
     let isLoading = false;
+    let isMobile = window.innerWidth <= 1024;
+
+    function detectPlatform() {
+      const ua = navigator.userAgent;
+      let platform = 'PC', icon = '🖥️';
+      if (/Mobi|Android|iPhone|iPad|iPod/i.test(ua)) {
+        if (/Android/i.test(ua)) { platform = 'Android'; icon = '📱'; }
+        else if (/iPhone|iPad|iPod/i.test(ua)) { platform = 'iOS'; icon = '🍎'; }
+      } else if (/Windows/i.test(ua)) { platform = 'Windows'; icon = '🪟'; }
+      else if (/Macintosh|Mac OS X/i.test(ua)) { platform = 'macOS'; icon = '🍏'; }
+      else if (/Linux/i.test(ua)) { platform = 'Linux'; icon = '🐧'; }
+      const badge = icon + ' ' + platform;
+      ['platformBadgeMobile', 'platformBadgeDesktop', 'platformBadgeHeader'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.textContent = badge;
+      });
+    }
+
+    function openSidebar() {
+      document.getElementById('sidebarMobile').classList.add('open');
+      document.getElementById('overlay').classList.add('show');
+      document.body.style.overflow = 'hidden';
+    }
+    function closeSidebar() {
+      document.getElementById('sidebarMobile').classList.remove('open');
+      document.getElementById('overlay').classList.remove('show');
+      document.body.style.overflow = '';
+    }
+
+    document.addEventListener('change', function(e) {
+      if (e.target.id === 'jailbreakCheckboxMobile') {
+        document.getElementById('jailbreakCheckboxDesktop').checked = e.target.checked;
+      } else if (e.target.id === 'jailbreakCheckboxDesktop') {
+        document.getElementById('jailbreakCheckboxMobile').checked = e.target.checked;
+      }
+    });
 
     function markdownToHtml(text) {
       if (!text) return '';
@@ -608,14 +319,9 @@
           activeConvIndex = 0;
           activeConvId = conversations[0].id;
           switchChat(0);
-        } else {
-          newChat();
-        }
+        } else { newChat(); }
         renderHistory();
-      } catch (e) {
-        console.error('Erro ao carregar conversas:', e);
-        newChat();
-      }
+      } catch (e) { newChat(); }
     }
 
     function newChat() {
@@ -634,19 +340,14 @@
       renderHistory();
       const container = document.getElementById('chatContainer');
       container.innerHTML = '';
-      const msgs = conversations[index].messages;
-      msgs.forEach(m => {
-        if (m.role === 'user' || m.role === 'assistant') {
-          appendMessage(m.role, m.content, m.thinking);
-        }
+      conversations[index].messages.forEach(m => {
+        if (m.role === 'user' || m.role === 'assistant') appendMessage(m.role, m.content, m.thinking);
       });
       container.scrollTop = container.scrollHeight;
       if (isMobile) closeSidebar();
     }
 
     function renderHistory() {
-      const historyEl = isMobile ? document.getElementById('historyMobile') : document.getElementById('historyDesktop');
-      // Atualiza ambos
       [document.getElementById('historyMobile'), document.getElementById('historyDesktop')].forEach(hist => {
         if (!hist) return;
         hist.innerHTML = '';
@@ -682,7 +383,6 @@
     function clearFileSelection() {
       currentFile = null;
       pendingFileContent = null;
-      pendingFileName = null;
       document.getElementById('fileInput').value = '';
       updateFilePreview();
       updateSendButton();
@@ -704,6 +404,7 @@
       const input = document.getElementById('userInput');
       let message = input.value.trim();
 
+      // Se há arquivo para fazer upload, faz primeiro e já envia em seguida
       if (currentFile && !pendingFileContent) {
         const formData = new FormData();
         formData.append('file', currentFile);
@@ -712,46 +413,36 @@
           const data = await resp.json();
           if (data.error) { alert(data.error); return; }
           pendingFileContent = data.content;
-          pendingFileName = data.filename;
-          document.getElementById('fileInput').value = '';
+          // Remove o arquivo da interface após upload bem-sucedido
           currentFile = null;
+          document.getElementById('fileInput').value = '';
           updateFilePreview();
-          if (!message) {
-            updateSendButton();
-            return;
-          }
+          // Se não há mensagem, monta uma padrão
+          if (!message) message = `Analise o arquivo "${data.filename}".`;
         } catch (e) {
           alert('Erro no upload: ' + e.message);
           return;
         }
       }
 
-      if (!message && pendingFileContent) {
-        message = `Analise o arquivo "${pendingFileName}".`;
-      }
-
       if (!message) return;
 
       isLoading = true;
-      let displayMessage = message;
-      appendMessage('user', displayMessage);
+      appendMessage('user', message);
       input.value = '';
       autoResize(input);
       updateSendButton();
 
       if (activeConvIndex === -1) newChat();
       const conv = conversations[activeConvIndex];
-      conv.messages.push({ role: 'user', content: displayMessage });
+      conv.messages.push({ role: 'user', content: message });
 
       const fileContent = pendingFileContent;
       pendingFileContent = null;
-      pendingFileName = null;
-      updateFilePreview();
 
       const jailbreakCheckbox = isMobile ? document.getElementById('jailbreakCheckboxMobile') : document.getElementById('jailbreakCheckboxDesktop');
-
       const payload = {
-        message: displayMessage,
+        message: message,
         file_content: fileContent,
         conversation_id: activeConvId,
         jailbreak: jailbreakCheckbox ? jailbreakCheckbox.checked : false
@@ -790,9 +481,11 @@
         conv.messages.push({ role: 'assistant', content: fullAnswer, thinking: fullThinking });
         conv.id = activeConvId;
         if (conv.title === 'Nova conversa' || conv.title === '(vazio)') {
-          conv.title = displayMessage.substring(0, 50) + (displayMessage.length > 50 ? '...' : '');
+          conv.title = message.substring(0, 50) + (message.length > 50 ? '...' : '');
         }
         renderHistory();
+        // Limpa completamente após envio
+        clearFileSelection();
       } catch (e) {
         typingDiv.remove();
         msgContent.innerHTML += '<br>Erro: ' + e.message;
@@ -827,16 +520,12 @@
       return row;
     }
 
-    // Atualiza o layout ao redimensionar
     window.addEventListener('resize', () => {
       const wasMobile = isMobile;
       isMobile = window.innerWidth <= 1024;
-      if (wasMobile !== isMobile) {
-        renderHistory(); // re-renderiza no histórico correto
-      }
+      if (wasMobile !== isMobile) renderHistory();
     });
 
-    // Inicialização
     detectPlatform();
     renderHistory();
     loadConversations();
