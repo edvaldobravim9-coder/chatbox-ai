@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Chatbox</title>
   <style>
     :root {
@@ -29,8 +29,10 @@
       height: 100dvh;
       overflow: hidden;
       -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
     }
 
+    /* ====== SIDEBAR ====== */
     .sidebar {
       width: 260px;
       background: var(--sidebar-bg);
@@ -39,6 +41,16 @@
       padding: 12px;
       flex-shrink: 0;
       border-right: 1px solid var(--border-color);
+      transition: transform 0.3s ease;
+      z-index: 20;
+    }
+
+    .sidebar.hidden {
+      transform: translateX(-100%);
+      position: absolute;
+      height: 100dvh;
+      top: 0;
+      left: 0;
     }
 
     .sidebar .user-info {
@@ -103,6 +115,7 @@
       gap: 8px;
       transition: background 0.15s;
       margin-bottom: 16px;
+      width: 100%;
     }
 
     .sidebar button.new-chat:hover { background: #5b8aff; }
@@ -139,13 +152,47 @@
       display: flex;
       align-items: center;
       gap: 8px;
+      flex-wrap: wrap;
     }
 
+    .platform-badge {
+      background: rgba(79, 125, 255, 0.15);
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 10px;
+      color: var(--brand-blue);
+      border: 1px solid rgba(79, 125, 255, 0.3);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* ====== MAIN ====== */
     .main {
       flex: 1;
       display: flex;
       flex-direction: column;
       min-width: 0;
+      position: relative;
+    }
+
+    .chat-header {
+      display: none;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+      background: var(--sidebar-bg);
+      gap: 12px;
+    }
+
+    .menu-btn {
+      background: none;
+      border: none;
+      color: var(--text-primary);
+      font-size: 24px;
+      cursor: pointer;
+      padding: 4px;
+      line-height: 1;
     }
 
     .chat-container {
@@ -156,8 +203,8 @@
 
     .message-row {
       display: flex;
-      padding: 20px 16%;
-      gap: 20px;
+      padding: 16px 5%;
+      gap: 12px;
       border-bottom: 1px solid rgba(255,255,255,0.02);
       animation: fadeIn 0.2s ease;
     }
@@ -171,15 +218,15 @@
     .message-row.assistant { background: var(--bg-message-assistant); }
 
     .avatar {
-      width: 30px;
-      height: 30px;
+      width: 28px;
+      height: 28px;
       border-radius: 4px;
       font-weight: 700;
       display: flex;
       align-items: center;
       justify-content: center;
       color: white;
-      font-size: 13px;
+      font-size: 12px;
       flex-shrink: 0;
     }
 
@@ -187,9 +234,10 @@
     .assistant .avatar { background: var(--brand-green); }
 
     .message-content {
-      line-height: 1.7;
+      line-height: 1.6;
       flex: 1;
-      font-size: 15px;
+      font-size: 14px;
+      word-break: break-word;
     }
 
     .message-content strong { color: #ffffff; font-weight: 700; }
@@ -199,7 +247,7 @@
       padding: 2px 6px;
       border-radius: 4px;
       font-family: 'Fira Code', monospace;
-      font-size: 13px;
+      font-size: 12px;
       color: #f0c050;
     }
     .message-content blockquote {
@@ -219,7 +267,7 @@
       padding: 10px 14px;
       margin: 10px 0;
       border-radius: 6px;
-      font-size: 13px;
+      font-size: 12px;
       color: #aaaacc;
     }
 
@@ -237,7 +285,7 @@
     }
 
     .input-area {
-      padding: 12px 16% 24px;
+      padding: 8px 5% 16px;
       background: linear-gradient(180deg, transparent 0%, #0b0b1e 20%);
     }
 
@@ -247,7 +295,7 @@
       background: var(--bg-message-assistant);
       border-radius: 16px;
       border: 1px solid var(--border-color);
-      padding: 8px 14px;
+      padding: 6px 10px;
       box-shadow: 0 0 15px rgba(79,125,255,0.05);
       transition: border-color 0.2s;
     }
@@ -262,12 +310,12 @@
       border: none;
       color: var(--text-primary);
       resize: none;
-      font-size: 15px;
-      padding: 8px 0;
+      font-size: 14px;
+      padding: 6px 0;
       outline: none;
       font-family: inherit;
       line-height: 1.5;
-      max-height: 200px;
+      max-height: 120px;
     }
 
     .input-wrapper textarea::placeholder { color: #6666a0; font-style: italic; }
@@ -278,8 +326,8 @@
       border: none;
       color: #7777aa;
       cursor: pointer;
-      padding: 6px;
-      font-size: 18px;
+      padding: 4px;
+      font-size: 16px;
       display: flex;
       align-items: center;
       transition: color 0.15s;
@@ -289,8 +337,8 @@
 
     .btn.send {
       color: var(--brand-blue);
-      font-size: 20px;
-      padding: 4px;
+      font-size: 18px;
+      padding: 2px;
       opacity: 0.6;
       transition: opacity 0.15s;
     }
@@ -301,17 +349,17 @@
       background: rgba(0,0,0,0.3);
       padding: 4px 10px;
       border-radius: 12px;
-      margin-right: 8px;
-      font-size: 12px;
+      margin-right: 6px;
+      font-size: 11px;
       white-space: nowrap;
       display: inline-flex;
       align-items: center;
       gap: 4px;
     }
 
-    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #3a3a6a; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb { background: #3a3a6a; border-radius: 2px; }
 
     .typing-dots {
       display: inline-flex;
@@ -334,24 +382,78 @@
       0%, 80%, 100% { transform: scale(0); }
       40% { transform: scale(1); }
     }
+
+    /* Overlay para celular ao abrir sidebar */
+    .overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6);
+      z-index: 15;
+    }
+
+    .overlay.show { display: block; }
+
+    /* ====== RESPONSIVE (Mobile) ====== */
+    @media (max-width: 768px) {
+      .sidebar {
+        position: absolute;
+        height: 100dvh;
+        left: 0;
+        top: 0;
+      }
+
+      .sidebar.hidden {
+        transform: translateX(-100%);
+      }
+
+      .sidebar:not(.hidden) {
+        transform: translateX(0);
+      }
+
+      .main {
+        width: 100%;
+      }
+
+      .chat-header {
+        display: flex;
+      }
+
+      .message-row {
+        padding: 12px 3%;
+      }
+
+      .input-area {
+        padding: 8px 3% 16px;
+      }
+    }
   </style>
 </head>
 <body>
-  <div class="sidebar">
+  <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+  <div class="sidebar hidden" id="sidebar">
     <div class="user-info">
       <div class="avatar-circle">{{ current_user.name[0].upper() }}</div>
       <span class="user-name">{{ current_user.name }}</span>
       <a href="/logout" class="logout-btn" title="Sair">⏻</a>
     </div>
-    <button class="new-chat" onclick="newChat()">+ Novo chat</button>
+    <button class="new-chat" onclick="newChat(); closeSidebar()">+ Novo chat</button>
     <div class="history" id="history"></div>
     <div class="footer">
       <span>🔓 Modo Dev</span>
       <input type="checkbox" id="jailbreakCheckbox" style="margin-left: auto; accent-color: #ff6b6b;">
+      <span class="platform-badge" id="platformBadge"></span>
     </div>
   </div>
 
   <div class="main">
+    <div class="chat-header">
+      <button class="menu-btn" onclick="openSidebar()">☰</button>
+      <span style="font-weight: 600; font-size: 16px;">Chatbox</span>
+      <span class="platform-badge" id="platformBadgeHeader" style="margin-left: auto;"></span>
+    </div>
     <div class="chat-container" id="chatContainer"></div>
     <div class="input-area">
       <div class="input-wrapper">
@@ -366,6 +468,60 @@
   </div>
 
   <script>
+    // Detecta plataforma/dispositivo
+    function detectPlatform() {
+      const ua = navigator.userAgent;
+      let platform = 'PC';
+      let icon = '🖥️';
+
+      if (/Mobi|Android|iPhone|iPad|iPod/i.test(ua)) {
+        if (/Android/i.test(ua)) {
+          platform = 'Android';
+          icon = '📱';
+        } else if (/iPhone|iPad|iPod/i.test(ua)) {
+          platform = 'iOS';
+          icon = '🍎';
+        }
+      } else if (/Windows/i.test(ua)) {
+        platform = 'Windows';
+        icon = '🪟';
+      } else if (/Macintosh|Mac OS X/i.test(ua)) {
+        platform = 'macOS';
+        icon = '🍏';
+      } else if (/Linux/i.test(ua)) {
+        platform = 'Linux';
+        icon = '🐧';
+      }
+
+      const badge = icon + ' ' + platform;
+      const sidebarBadge = document.getElementById('platformBadge');
+      const headerBadge = document.getElementById('platformBadgeHeader');
+      if (sidebarBadge) sidebarBadge.textContent = badge;
+      if (headerBadge) headerBadge.textContent = badge;
+    }
+
+    function openSidebar() {
+      document.getElementById('sidebar').classList.remove('hidden');
+      document.getElementById('overlay').classList.add('show');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeSidebar() {
+      document.getElementById('sidebar').classList.add('hidden');
+      document.getElementById('overlay').classList.remove('show');
+      document.body.style.overflow = '';
+    }
+
+    // Para desktop, sidebar sempre visível
+    function initLayout() {
+      if (window.innerWidth > 768) {
+        document.getElementById('sidebar').classList.remove('hidden');
+        document.body.style.overflow = '';
+      }
+    }
+
+    window.addEventListener('resize', initLayout);
+
     const CHAT_URL = '/chat';
     const UPLOAD_URL = '/upload';
     const CONVERSATIONS_URL = '/conversations';
@@ -374,8 +530,8 @@
     let activeConvIndex = -1;
     let activeConvId = null;
     let currentFile = null;
-    let pendingFileContent = null; // Armazena o texto extraído, sem exibir no textarea
-    let pendingFileName = null; // Armazena o nome do arquivo, para usar na mensagem se vazia
+    let pendingFileContent = null;
+    let pendingFileName = null;
     let isLoading = false;
 
     function markdownToHtml(text) {
@@ -425,6 +581,7 @@
       renderHistory();
       document.getElementById('chatContainer').innerHTML = '';
       clearFileSelection();
+      closeSidebar();
     }
 
     async function switchChat(index) {
@@ -440,6 +597,7 @@
         }
       });
       container.scrollTop = container.scrollHeight;
+      closeSidebar();
     }
 
     function renderHistory() {
@@ -458,7 +616,7 @@
       if (input.files.length > 0) {
         currentFile = input.files[0];
         updateFilePreview();
-        updateSendButton(); // Atualiza o botão de envio
+        updateSendButton();
       }
     }
 
@@ -484,13 +642,12 @@
 
     function autoResize(el) {
       el.style.height = 'auto';
-      el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+      el.style.height = Math.min(el.scrollHeight, 120) + 'px';
     }
 
     function updateSendButton() {
       const btn = document.getElementById('sendButton');
       const input = document.getElementById('userInput');
-      // Habilita o botão se houver texto OU arquivo selecionado
       btn.classList.toggle('enabled', input.value.trim().length > 0 || currentFile);
     }
 
@@ -499,7 +656,6 @@
       const input = document.getElementById('userInput');
       let message = input.value.trim();
 
-      // Se há arquivo selecionado e ainda não foi extraído
       if (currentFile && !pendingFileContent) {
         const formData = new FormData();
         formData.append('file', currentFile);
@@ -507,15 +663,12 @@
           const resp = await fetch(UPLOAD_URL, { method: 'POST', body: formData });
           const data = await resp.json();
           if (data.error) { alert(data.error); return; }
-          // Armazena o conteúdo, mas NÃO coloca no textarea
           pendingFileContent = data.content;
           pendingFileName = data.filename;
-          // Remove o arquivo do input, mas mantém o pill
           document.getElementById('fileInput').value = '';
           currentFile = null;
-          // Se não há mensagem, a mensagem será só sobre o arquivo
+          updateFilePreview();
           if (!message) {
-            // Não envia automaticamente, apenas permite que o usuário clique novamente
             updateSendButton();
             return;
           }
@@ -525,7 +678,6 @@
         }
       }
 
-      // Se não há mensagem mas há conteúdo de arquivo pendente, envia com mensagem padrão
       if (!message && pendingFileContent) {
         message = `Analise o arquivo "${pendingFileName}".`;
       }
@@ -533,14 +685,11 @@
       if (!message) return;
 
       isLoading = true;
-
-      // Monta a mensagem a ser exibida no chat
       let displayMessage = message;
       appendMessage('user', displayMessage);
       input.value = '';
       autoResize(input);
       updateSendButton();
-      // Não limpa o pendingFileContent aqui, pois ele será enviado no payload
 
       if (activeConvIndex === -1) newChat();
       const conv = conversations[activeConvIndex];
@@ -549,7 +698,7 @@
       const fileContent = pendingFileContent;
       pendingFileContent = null;
       pendingFileName = null;
-      updateFilePreview(); // Remove o pill após envio
+      updateFilePreview();
 
       const payload = {
         message: displayMessage,
@@ -628,6 +777,9 @@
       return row;
     }
 
+    // Inicialização
+    detectPlatform();
+    initLayout();
     loadConversations();
   </script>
 </body>
