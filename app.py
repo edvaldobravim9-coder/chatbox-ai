@@ -236,28 +236,13 @@ def upload():
 
 @app.route('/auth/google')
 def auth_google():
-    redirect_uri = url_for('auth_google_callback', _external=True)
+    redirect_uri = 'https://deepseek-plus-chat.onrender.com/auth/google/callback'
     return google.authorize_redirect(redirect_uri)
-
-@app.route('/auth/google/callback')
-def auth_google_callback():
-    token = google.authorize_access_token()
-    user_info = google.get('userinfo').json()
-    email = user_info['email']
-    name = user_info.get('name', email.split('@')[0])
-    user = User.query.filter_by(email=email, provider='google').first()
-    if not user:
-        user = User(email=email, name=name, provider='google')
-        db.session.add(user)
-        db.session.commit()
-    login_user(user)
-    return redirect(url_for('index_root'))
 
 @app.route('/auth/github')
 def auth_github():
-    redirect_uri = url_for('auth_github_callback', _external=True)
+    redirect_uri = 'https://deepseek-plus-chat.onrender.com/auth/github/callback'
     return github.authorize_redirect(redirect_uri)
-
 @app.route('/auth/github/callback')
 def auth_github_callback():
     token = github.authorize_access_token()
