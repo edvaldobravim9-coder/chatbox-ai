@@ -22,6 +22,9 @@ if not API_KEY:
 genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel('deepseek-reasoner')
 
+# Chave de busca (SerpAPI)
+SEARCH_API_KEY = os.environ.get('SEARCH_API_KEY', '')
+
 try: from PyPDF2 import PdfReader
 except: PdfReader = None
 try: from docx import Document
@@ -237,6 +240,45 @@ def ask(context, jailbreak=False):
     thinking = thinking.replace('\\', '')
     return thinking, answer
 
+# ====== FUNÇÃO DE BUSCA NA WEB ======
+def web_search(query):
+    """Realiza uma busca na web usando SerpAPI e retorna resultados formatados."""
+    if not SEARCH_API_KEY:
+        return None, "Erro: SEARCH_API_KEY não configurada."
+
+    try:
+        params = {
+            'q': query,
+            'api_key': SEARCH_API_KEY,
+            'engine': 'google',
+            'hl': 'pt',
+            'gl': 'br',
+            'num': 5
+        }
+        resp = requests.get('https://serpapi.com/search', params=params, timeout=15)
+        if resp.status_code != 200:
+            return None, f"Erro na busca: {resp.status_code}"
+
+        data = resp.json()
+        organic = data.get('organic_results', [])
+
+        if not organic:
+            return None, "Nenhum resultado encontrado."
+
+        # Formata os resultados com citações
+        formatted = "Resultados da busca na web:\n\n"
+        sources = []
+        for i, r in enumerate(organic[:5], 1):
+            title = r.get('title', 'Sem título')
+            link = r.get('link', '#')
+            snippet = r.get('snippet', '')[:300]
+            formatted += f"【{i}†1】 {title}\n{snippet}\nFonte: {link}\n\n"
+            sources.append({'title': title, 'link': link, 'snippet': snippet})
+
+        return sources, formatted
+    except Exception as e:
+        return None, f"Exceção na busca: {str(e)}"
+
 def get_or_create_guest():
     if 'guest_id' not in session:
         session['guest_id'] = str(uuid.uuid4())
@@ -307,6 +349,7 @@ def chat():
     file_content = sanitize_input(data.get('file_content', ''))
     conv_id = data.get('conversation_id')
     jailbreak = data.get('jailbreak', False)
+    search_enabled = data.get('search_enabled', False)
 
     if conv_id:
         conversation = Conversation.query.filter_by(id=conv_id, user_id=current_user.id).first()
@@ -322,6 +365,17 @@ def chat():
         context += f"{'User' if m.role == 'user' else 'Assistant'}: {m.content}\n"
     if file_content:
         context += f"[Arquivo anexado pelo usuário]:\n{file_content}\n\n"
+
+    # Se a busca estiver ativada, faz a pesquisa e adiciona ao contexto
+    search_sources = None
+    if search_enabled and message:
+        sources, search_result = web_search(message)
+        if sources:
+            search_sources = sources
+            context += f"\n[Resultados de busca na web para: \"{message}\"]\n{search_result}\n"
+        else:
+            context += f"\n[Busca na web falhou: {search_result}]\n"
+
     context += f"User: {message}\nAssistant:"
 
     thinking, answer = ask(context, jailbreak)
@@ -336,7 +390,12 @@ def chat():
         conversation.title = message[:50] + ('...' if len(message) > 50 else '')
         db.session.commit()
 
-    return jsonify({'thinking': thinking, 'answer': answer, 'conversation_id': conversation.id})
+    return jsonify({
+        'thinking': thinking,
+        'answer': answer,
+        'conversation_id': conversation.id,
+        'search_sources': search_sources
+    })
 
 @app.route('/conversations', methods=['GET'])
 @login_required
